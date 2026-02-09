@@ -1,11 +1,12 @@
-"""Tests for the BrandMeister talkgroup extraction."""
+"""Tests for the BrandMeister talkgroup extraction and RadioID download."""
 
 from __future__ import annotations
 
 import logging
+from unittest.mock import MagicMock, patch
 
 from codeplug_csv.config import CURATED_TALKGROUP_IDS
-from codeplug_csv.extract import BrandMeisterClient
+from codeplug_csv.extract import BrandMeisterClient, RadioIDClient
 
 
 class TestBrandMeisterFilterAndParse:
@@ -72,3 +73,46 @@ class TestBrandMeisterFilterAndParse:
             talkgroups = BrandMeisterClient._filter_and_parse({})
         assert talkgroups == []
         assert "Empty response" in caplog.text
+
+
+class TestRadioIDClient:
+    def test_download_writes_file(self, tmp_path):
+        sample_csv = b"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME\n1234567,M0ABC,John,Doe\n"
+        mock_resp = MagicMock()
+        mock_resp.iter_content.return_value = [sample_csv]
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("codeplug_csv.extract.requests.get", return_value=mock_resp) as mock_get:
+            dest = tmp_path / "user.csv"
+            result = RadioIDClient().download(dest)
+
+            mock_get.assert_called_once_with(
+                "https://www.radioid.net/static/user.csv",
+                stream=True,
+                timeout=60,
+            )
+            assert result == dest
+            assert dest.read_bytes() == sample_csv
+
+    def test_download_streams_multiple_chunks(self, tmp_path):
+        chunks = [b"RADIO_ID,CALLSIGN\n", b"1234567,M0ABC\n"]
+        mock_resp = MagicMock()
+        mock_resp.iter_content.return_value = chunks
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch("codeplug_csv.extract.requests.get", return_value=mock_resp):
+            dest = tmp_path / "user.csv"
+            RadioIDClient().download(dest)
+            assert dest.read_bytes() == b"RADIO_ID,CALLSIGN\n1234567,M0ABC\n"
+
+    def test_download_raises_on_http_error(self, tmp_path):
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.side_effect = Exception("404 Not Found")
+
+        with patch("codeplug_csv.extract.requests.get", return_value=mock_resp):
+            dest = tmp_path / "user.csv"
+            try:
+                RadioIDClient().download(dest)
+                assert False, "Expected exception"
+            except Exception as e:
+                assert "404" in str(e)

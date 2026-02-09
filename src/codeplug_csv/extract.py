@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import requests
 
@@ -12,6 +13,7 @@ from .config import (
     CURATED_TALKGROUP_IDS,
     MAX_NAME_LENGTH,
     PRIVATE_CALL_IDS,
+    RADIOID_CSV_URL,
     TALKGROUP_NAME_OVERRIDES,
 )
 from .models import Repeater, TalkGroup
@@ -130,3 +132,22 @@ class BrandMeisterClient:
 
         talkgroups.sort(key=lambda tg: tg.radio_id)
         return talkgroups
+
+
+class RadioIDClient:
+    """Client for downloading the RadioID DMR user database."""
+
+    def __init__(self, url: str = RADIOID_CSV_URL, timeout: int = 60):
+        self.url = url
+        self.timeout = timeout
+
+    def download(self, dest: Path) -> Path:
+        """Stream the RadioID user CSV to *dest* and return the path written."""
+        logger.info("Downloading RadioID database from %s", self.url)
+        resp = requests.get(self.url, stream=True, timeout=self.timeout)
+        resp.raise_for_status()
+        with open(dest, "wb") as fh:
+            for chunk in resp.iter_content(chunk_size=8192):
+                fh.write(chunk)
+        logger.info("Wrote RadioID database to %s", dest)
+        return dest

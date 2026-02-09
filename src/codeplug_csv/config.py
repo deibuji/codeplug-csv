@@ -151,6 +151,10 @@ CURATED_TALKGROUP_IDS: set[int] = {
 
 PRIVATE_CALL_IDS: set[int] = {9990, 234997}
 
+# ---------- RadioID ----------
+
+RADIOID_CSV_URL = "https://www.radioid.net/static/user.csv"
+
 TALKGROUP_NAME_OVERRIDES: dict[int, str] = {
     9: "Local",  # Must match channel contact field
     9990: "BM Parrot",

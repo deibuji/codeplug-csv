@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from .config import BANDS
-from .extract import BrandMeisterClient, RSGBClient
+from .extract import BrandMeisterClient, RadioIDClient, RSGBClient
 from .load import write_channels, write_talkgroups, write_zones
 from .simplex import get_static_zones
 from .transform import filter_repeaters, transform_repeaters
@@ -49,6 +49,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=["Turbo", "High", "Mid", "Low"],
         default="High",
         help="Transmit power level (default: High)",
+    )
+    parser.add_argument(
+        "--no-contacts",
+        action="store_true",
+        help="Skip downloading the RadioID digital contact list",
     )
     parser.add_argument(
         "-v",
@@ -100,6 +105,13 @@ def main(argv: list[str] | None = None) -> None:
     write_channels(all_channels, args.output_dir)
     write_zones(all_zones, args.output_dir)
     write_talkgroups(talkgroups, args.output_dir)
+
+    if not args.no_contacts:
+        try:
+            RadioIDClient().download(args.output_dir / "user.csv")
+        except Exception as e:
+            logger.warning("Failed to download RadioID contacts: %s", e)
+            print("Warning: RadioID contact list download failed (continuing without it)")
 
     print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")
