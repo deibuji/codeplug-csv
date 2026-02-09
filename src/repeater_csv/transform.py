@@ -44,21 +44,13 @@ def _clean_callsign(callsign: str) -> str:
     return re.sub(r"-[A-Z]$", "", callsign)
 
 
-def _make_channel_name(callsign: str, town: str, suffix: str) -> str:
+def _make_channel_name(callsign: str, suffix: str) -> str:
     """Build a channel name within MAX_NAME_LENGTH chars.
 
-    Format: '{callsign} {town_truncated} {suffix}'
+    Format: '{callsign} {suffix}'
     """
     clean = _clean_callsign(callsign)
-    # Reserve space for callsign + space + suffix
-    prefix_len = len(clean) + 1 + len(suffix) + 1  # +1 for space before suffix
-    available = MAX_NAME_LENGTH - prefix_len
-    if available > 0 and town:
-        town_part = town[:available]
-        name = f"{clean} {town_part} {suffix}"
-    else:
-        name = f"{clean} {suffix}"
-    return name[:MAX_NAME_LENGTH]
+    return f"{clean} {suffix}"[:MAX_NAME_LENGTH]
 
 
 def _extract_color_code(mode_codes: list[str]) -> int:
@@ -117,7 +109,7 @@ def transform_repeaters(
         if has_analog:
             channels.append(
                 AnytoneChannel(
-                    name=_make_channel_name(r.repeater, r.town, "FM"),
+                    name=_make_channel_name(r.repeater, "FM"),
                     rx_freq=rx_freq,
                     tx_freq=tx_freq,
                     channel_type="A-Analog",
@@ -134,24 +126,25 @@ def transform_repeaters(
 
         if has_dmr:
             cc = _extract_color_code(r.mode_codes)
-            channels.append(
-                AnytoneChannel(
-                    name=_make_channel_name(r.repeater, r.town, "DMR"),
-                    rx_freq=rx_freq,
-                    tx_freq=tx_freq,
-                    channel_type="D-Digital",
-                    bandwidth="12.5K",
-                    power=power,
-                    color_code=cc,
-                    slot=1,
-                    contact="Local",
-                    contact_call_type="Group Call",
-                    band=band,
-                    mode="DMR",
-                    region=region,
-                    rpt_type=rpt_type,
+            for slot, suffix in ((1, "TS1"), (2, "TS2")):
+                channels.append(
+                    AnytoneChannel(
+                        name=_make_channel_name(r.repeater, suffix),
+                        rx_freq=rx_freq,
+                        tx_freq=tx_freq,
+                        channel_type="D-Digital",
+                        bandwidth="12.5K",
+                        power=power,
+                        color_code=cc,
+                        slot=slot,
+                        contact="Local",
+                        contact_call_type="Group Call",
+                        band=band,
+                        mode="DMR",
+                        region=region,
+                        rpt_type=rpt_type,
+                    )
                 )
-            )
 
     logger.info("Generated %d channels", len(channels))
     return channels

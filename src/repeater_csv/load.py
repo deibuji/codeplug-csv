@@ -39,6 +39,7 @@ def _channel_row(number: int, ch: AnytoneChannel) -> dict[str, str]:
     row["Slot"] = str(ch.slot)
     row["Contact"] = ch.contact
     row["Contact Call Type"] = ch.contact_call_type
+    row["TX Prohibit"] = ch.tx_prohibit
 
     return row
 

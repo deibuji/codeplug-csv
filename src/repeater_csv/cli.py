@@ -10,6 +10,7 @@ from pathlib import Path
 from .config import BANDS
 from .extract import RSGBClient
 from .load import write_channels, write_talkgroups, write_zones
+from .simplex import get_static_zones
 from .transform import filter_repeaters, transform_repeaters
 from .zones import assign_zones
 
@@ -82,11 +83,16 @@ def main(argv: list[str] | None = None) -> None:
         sys.exit(0)
 
     channels = transform_repeaters(filtered, power=args.power)
-    zones = assign_zones(channels)
+    repeater_zones = assign_zones(channels)
+    static_zones = get_static_zones()
+    all_zones = repeater_zones + static_zones
 
-    write_channels(channels, args.output_dir)
-    write_zones(zones, args.output_dir)
+    # Derive channel list from zone order so channel numbers align with zones
+    all_channels = [ch for zone in all_zones for ch in zone.channels]
+
+    write_channels(all_channels, args.output_dir)
+    write_zones(all_zones, args.output_dir)
     write_talkgroups(args.output_dir)
 
-    print(f"Generated {len(channels)} channels in {len(zones)} zones")
+    print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")

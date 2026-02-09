@@ -38,6 +38,7 @@ class AnytoneChannel:
     slot: int = 1
     contact: str = ""
     contact_call_type: str = "Group Call"
+    tx_prohibit: str = "Off"
     # For zone assignment
     band: str = ""  # "2m" or "70cm"
     mode: str = ""  # "ANL" or "DMR"

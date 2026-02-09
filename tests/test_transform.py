@@ -9,7 +9,6 @@ from repeater_csv.transform import (
     _ctcss_str,
     _extract_color_code,
     _hz_to_mhz,
-    _make_channel_name,
     filter_repeaters,
     transform_repeaters,
 )
@@ -72,15 +71,18 @@ class TestHelpers:
         assert _clean_callsign("GB7AA") == "GB7AA"
         assert _clean_callsign("GB3WR-R") == "GB3WR"
 
-    def test_make_channel_name_within_limit(self):
-        name = _make_channel_name("GB3CD-L", "CROOK", "FM")
-        assert len(name) <= 16
-        assert "GB3CD" in name
-        assert "FM" in name
+    def test_make_channel_name(self):
+        from repeater_csv.transform import _make_channel_name
 
-    def test_make_channel_name_long_town_truncated(self):
-        name = _make_channel_name("GB7AA", "WOLVERHAMPTON", "DMR")
+        name = _make_channel_name("GB3CD-L", "FM")
+        assert name == "GB3CD FM"
         assert len(name) <= 16
+
+    def test_make_channel_name_ts_suffix(self):
+        from repeater_csv.transform import _make_channel_name
+
+        assert _make_channel_name("GB7AA", "TS1") == "GB7AA TS1"
+        assert _make_channel_name("GB7AA", "TS2") == "GB7AA TS2"
 
     def test_extract_color_code_with_value(self):
         assert _extract_color_code(["M:3"]) == 3
@@ -110,28 +112,30 @@ class TestTransformRepeaters:
         assert gb3cd.rx_freq == "145.68750"
         assert gb3cd.tx_freq == "145.08750"
 
-    def test_multimode_produces_two_channels(self, sample_repeaters):
-        """Repeater with both A and M should produce FM + DMR channels."""
+    def test_multimode_produces_three_channels(self, sample_repeaters):
+        """Repeater with both A and M should produce FM + TS1 + TS2 channels."""
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
         gb3rd = [ch for ch in channels if "GB3RD" in ch.name]
-        assert len(gb3rd) == 2
-        types = {ch.channel_type for ch in gb3rd}
-        assert types == {"A-Analog", "D-Digital"}
+        assert len(gb3rd) == 3
+        names = {ch.name for ch in gb3rd}
+        assert "GB3RD FM" in names
+        assert "GB3RD TS1" in names
+        assert "GB3RD TS2" in names
 
     def test_dmr_color_code(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb7aa = next(ch for ch in channels if "GB7AA" in ch.name)
-        assert gb7aa.color_code == 1
-        gb7av = next(ch for ch in channels if "GB7AV" in ch.name)
-        assert gb7av.color_code == 3
+        gb7aa_ts1 = next(ch for ch in channels if ch.name == "GB7AA TS1")
+        assert gb7aa_ts1.color_code == 1
+        gb7av_ts1 = next(ch for ch in channels if ch.name == "GB7AV TS1")
+        assert gb7av_ts1.color_code == 3
 
     def test_bare_m_default_color_code(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb7ld = next(ch for ch in channels if "GB7LD" in ch.name)
-        assert gb7ld.color_code == 1
+        gb7ld_ts1 = next(ch for ch in channels if ch.name == "GB7LD TS1")
+        assert gb7ld_ts1.color_code == 1
 
     def test_analog_ctcss(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
@@ -156,6 +160,17 @@ class TestTransformRepeaters:
         channels = transform_repeaters(filtered)
         gb3cd = next(ch for ch in channels if "GB3CD" in ch.name)
         assert gb3cd.mode == "ANL"
+
+    def test_dmr_produces_ts1_and_ts2(self, sample_repeaters):
+        """Each DMR repeater should produce two channels with slot 1 and 2."""
+        filtered = filter_repeaters(sample_repeaters)
+        channels = transform_repeaters(filtered)
+        gb7aa = [ch for ch in channels if "GB7AA" in ch.name]
+        assert len(gb7aa) == 2
+        assert gb7aa[0].name == "GB7AA TS1"
+        assert gb7aa[0].slot == 1
+        assert gb7aa[1].name == "GB7AA TS2"
+        assert gb7aa[1].slot == 2
 
     def test_region_from_locator(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)

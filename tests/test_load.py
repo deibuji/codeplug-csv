@@ -21,7 +21,7 @@ def output_dir(tmp_path: Path) -> Path:
 def sample_channels() -> list[AnytoneChannel]:
     return [
         AnytoneChannel(
-            name="GB3CD CROOK FM",
+            name="GB3CD FM",
             rx_freq="145.68750",
             tx_freq="145.08750",
             channel_type="A-Analog",
@@ -30,10 +30,10 @@ def sample_channels() -> list[AnytoneChannel]:
             ctcss_decode="118.8",
             power="High",
             band="2m",
-            mode="FM",
+            mode="ANL",
         ),
         AnytoneChannel(
-            name="GB7AA LONDON DMR",
+            name="GB7AA TS1",
             rx_freq="439.45000",
             tx_freq="430.85000",
             channel_type="D-Digital",
@@ -74,7 +74,7 @@ class TestWriteChannels:
             reader = csv.DictReader(f)
             rows = list(reader)
         analog = rows[0]
-        assert analog["Channel Name"] == "GB3CD CROOK FM"
+        assert analog["Channel Name"] == "GB3CD FM"
         assert analog["Channel Type"] == "A-Analog"
         assert analog["Receive Frequency"] == "145.68750"
         assert analog["Transmit Frequency"] == "145.08750"
@@ -87,7 +87,7 @@ class TestWriteChannels:
             reader = csv.DictReader(f)
             rows = list(reader)
         digital = rows[1]
-        assert digital["Channel Name"] == "GB7AA LONDON DMR"
+        assert digital["Channel Name"] == "GB7AA TS1"
         assert digital["Channel Type"] == "D-Digital"
         assert digital["Color Code"] == "1"
         assert digital["Contact"] == "Local"
@@ -100,6 +100,22 @@ class TestWriteChannels:
             for row in reader:
                 for col in CHANNEL_COLUMNS:
                     assert col in row, f"Missing column: {col}"
+
+
+    def test_tx_prohibit_on(self, output_dir):
+        """TX Prohibit field should be written to CSV."""
+        ch = AnytoneChannel(
+            name="PMR 1",
+            rx_freq="446.00625",
+            tx_freq="446.00625",
+            channel_type="A-Analog",
+            tx_prohibit="On",
+        )
+        write_channels([ch], output_dir)
+        with open(output_dir / "Channel.CSV") as f:
+            reader = csv.DictReader(f)
+            row = next(reader)
+        assert row["TX Prohibit"] == "On"
 
 
 class TestWriteZones:
