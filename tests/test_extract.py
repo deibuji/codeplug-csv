@@ -52,17 +52,20 @@ class TestBrandMeisterFilterAndParse:
         for tg in talkgroups:
             assert tg.call_alert == "None"
 
-    def test_missing_curated_ids_logged(self, caplog):
+    def test_missing_curated_ids_added_as_fallback(self, caplog):
         partial_data = {"9": "Local", "235": "UK Wide"}
-        with caplog.at_level(logging.WARNING):
-            BrandMeisterClient._filter_and_parse(partial_data)
-        assert "not found in API response" in caplog.text
+        with caplog.at_level(logging.INFO):
+            talkgroups = BrandMeisterClient._filter_and_parse(partial_data)
+        assert "not in API response" in caplog.text
+        ids = {tg.radio_id for tg in talkgroups}
+        assert ids == CURATED_TALKGROUP_IDS
 
     def test_invalid_keys_skipped(self):
         data = {"abc": "Invalid", "9": "Local"}
         talkgroups = BrandMeisterClient._filter_and_parse(data)
-        assert len(talkgroups) == 1
-        assert talkgroups[0].radio_id == 9
+        ids = {tg.radio_id for tg in talkgroups}
+        assert ids == CURATED_TALKGROUP_IDS
+        assert any(tg.radio_id == 9 and tg.name == "Local" for tg in talkgroups)
 
     def test_empty_response_returns_empty_list(self, caplog):
         with caplog.at_level(logging.WARNING):

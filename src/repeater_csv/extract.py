@@ -112,10 +112,20 @@ class BrandMeisterClient:
             )
 
         missing = CURATED_TALKGROUP_IDS - found_ids
-        if missing:
-            logger.warning(
-                "Curated talkgroup IDs not found in API response: %s",
-                sorted(missing),
+        for tg_id in sorted(missing):
+            tg_name = TALKGROUP_NAME_OVERRIDES.get(tg_id, str(tg_id))
+            tg_name = tg_name[:MAX_NAME_LENGTH]
+            call_type = "Private Call" if tg_id in PRIVATE_CALL_IDS else "Group Call"
+            talkgroups.append(
+                TalkGroup(
+                    name=tg_name,
+                    radio_id=tg_id,
+                    call_type=call_type,
+                    call_alert="None",
+                )
+            )
+            logger.info(
+                "Talkgroup %d not in API response, added as %r", tg_id, tg_name
             )
 
         talkgroups.sort(key=lambda tg: tg.radio_id)

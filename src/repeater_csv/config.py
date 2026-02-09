@@ -153,4 +153,6 @@ PRIVATE_CALL_IDS: set[int] = {9990, 234997}
 
 TALKGROUP_NAME_OVERRIDES: dict[int, str] = {
     9: "Local",  # Must match channel contact field
+    9990: "BM Parrot",
+    234997: "UK Parrot",
 }
