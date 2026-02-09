@@ -83,7 +83,7 @@ The API's `tx` field (what the repeater transmits) maps to the Anytone's `Receiv
 
 ## CI
 
-A GitHub Actions workflow builds the codeplug every Monday and on manual dispatch. The zipped CSV files are uploaded as a `codeplug` build artifact.
+A GitHub Actions workflow builds the codeplug every Monday and on manual dispatch. The zipped CSV files are uploaded as a `codeplug` build artifact. Download the latest build from the [Releases](../../releases) page.
 
 ## Tests
 
