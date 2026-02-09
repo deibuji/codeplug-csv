@@ -7,7 +7,7 @@ Covers 2m and 70cm bands, both analog (FM) and digital (DMR) repeaters.
 ## Output files
 
 - **Channel.CSV** - All channels with the full column set the AT-D878UV CPS expects (analog + digital)
-- **Zone.CSV** - Channels grouped by band and mode (e.g. "2m FM", "70cm DMR")
+- **Zone.CSV** - Repeater channels grouped by UK region, band, and mode (e.g. "NE 2m FM", "LONDON 70cm DMR"), plus static simplex/utility zones
 - **TalkGroups.CSV** - Default UK DMR talkgroups (Local, UK Wide, Regional, BM Parrot)
 
 ## Install
@@ -38,14 +38,28 @@ python -m repeater_csv -o output/
 
 1. **Extract** - Fetches repeater data from `GET /band/2m` and `GET /band/70cm`
 2. **Transform** - Filters to operational analog/DMR repeaters, swaps TX/RX frequencies to the radio's perspective, generates channel names (max 16 chars), extracts DMR color codes from the API's `modeCodes` field
-3. **Zone** - Groups channels by band + mode, splitting zones that exceed the 250-channel Anytone limit
-4. **Load** - Writes the three CSV files
+3. **Zone** - Groups repeater channels by UK region + band + mode, splitting zones that exceed the 250-channel Anytone limit. Appends static simplex/utility zones.
+4. **Load** - Writes the three CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous.
 
-Repeaters with both analog and DMR modes produce two channels (one FM, one DMR).
+Repeaters with both analog and DMR modes produce three channels (one FM, two DMR — TS1 and TS2).
 
 ### DMR color codes
 
 The RSGB API encodes DMR color codes in `modeCodes` as `M:N` (e.g. `["M:3"]` = color code 3). When only bare `"M"` is present, color code defaults to 1.
+
+### Static zones
+
+Seven additional zones are included with every codeplug:
+
+| Zone | Channels | Notes |
+|------|----------|-------|
+| VHF FM SIMPLEX | V16–V46 (31ch) | 145.200–145.575 MHz, V40 = calling channel |
+| UHF FM SIMPLEX | U272–U288 (17ch) | 433.400–433.600 MHz, U280 = calling channel |
+| VHF DV SIMPLEX | 2M DV CALL (1ch) | 144.6125 MHz, DMR CC1 TS1 |
+| UHF DV SIMPLEX | DH1–DH8 (8ch) | 438.5875–438.6750 MHz, DH3 = calling channel |
+| PMR446 | PMR 1–16 (16ch) | 446.00625–446.19375 MHz, TX prohibited |
+| ISS | 7ch | Doppler-shifted downlinks + cross-band repeater |
+| MARINE VHF | 22ch | Simplex-only channels, TX prohibited |
 
 ### Frequency mapping
 
