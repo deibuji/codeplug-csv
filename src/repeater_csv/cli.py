@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from .config import BANDS
-from .extract import RSGBClient
+from .extract import BrandMeisterClient, RSGBClient
 from .load import write_channels, write_talkgroups, write_zones
 from .simplex import get_static_zones
 from .transform import filter_repeaters, transform_repeaters
@@ -76,6 +76,13 @@ def main(argv: list[str] | None = None) -> None:
         logger.error("Failed to fetch repeater data: %s", e)
         sys.exit(1)
 
+    bm_client = BrandMeisterClient()
+    try:
+        talkgroups = bm_client.fetch_talkgroups()
+    except Exception as e:
+        logger.error("Failed to fetch talkgroup data: %s", e)
+        sys.exit(1)
+
     filtered = filter_repeaters(repeaters, locator_prefix=args.locator)
     if not filtered:
         logger.warning("No repeaters matched the filters")
@@ -92,7 +99,7 @@ def main(argv: list[str] | None = None) -> None:
 
     write_channels(all_channels, args.output_dir)
     write_zones(all_zones, args.output_dir)
-    write_talkgroups(args.output_dir)
+    write_talkgroups(talkgroups, args.output_dir)
 
     print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")

@@ -24,3 +24,10 @@ def sample_api_data() -> list[dict]:
 def sample_repeaters(sample_api_data: list[dict]) -> list[Repeater]:
     """Parsed Repeater objects from fixture data."""
     return [RSGBClient._parse(item) for item in sample_api_data]
+
+
+@pytest.fixture
+def sample_bm_data() -> dict[str, str]:
+    """Raw BrandMeister API response data."""
+    with open(FIXTURES / "sample_brandmeister_response.json") as f:
+        return json.load(f)

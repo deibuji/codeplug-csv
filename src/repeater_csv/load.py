@@ -9,7 +9,6 @@ from pathlib import Path
 from .config import (
     ANALOG_DEFAULTS,
     CHANNEL_COLUMNS,
-    DEFAULT_TALKGROUPS,
     DIGITAL_DEFAULTS,
     TALKGROUP_COLUMNS,
     ZONE_COLUMNS,
@@ -79,18 +78,8 @@ def write_zones(zones: list[AnytoneZone], output_dir: Path) -> Path:
     return path
 
 
-def write_talkgroups(output_dir: Path) -> Path:
-    """Write TalkGroups.CSV with default UK DMR talkgroups."""
-    talkgroups = [
-        TalkGroup(
-            name=tg["name"],
-            radio_id=tg["id"],
-            call_type=tg["call_type"],
-            call_alert=tg["alert"],
-        )
-        for tg in DEFAULT_TALKGROUPS
-    ]
-
+def write_talkgroups(talkgroups: list[TalkGroup], output_dir: Path) -> Path:
+    """Write TalkGroups.CSV from a list of TalkGroup objects."""
     path = output_dir / "TalkGroups.CSV"
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(

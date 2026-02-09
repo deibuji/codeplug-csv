@@ -71,6 +71,11 @@ class TestHotspot:
         for ch in zone.channels:
             assert len(ch.name) <= 16
 
+    def test_all_contact_local(self):
+        zone = hotspot_zone()
+        for ch in zone.channels:
+            assert ch.contact == "Local"
+
 
 class TestVhfFmSimplex:
     def test_zone_name(self):
@@ -182,6 +187,10 @@ class TestVhfDvSimplex:
         zone = vhf_dv_simplex_zone()
         assert len(zone.channels[0].name) <= 16
 
+    def test_contact_local(self):
+        zone = vhf_dv_simplex_zone()
+        assert zone.channels[0].contact == "Local"
+
 
 class TestUhfDvSimplex:
     def test_zone_name(self):
@@ -225,6 +234,11 @@ class TestUhfDvSimplex:
         zone = uhf_dv_simplex_zone()
         for ch in zone.channels:
             assert len(ch.name) <= 16
+
+    def test_all_contact_local(self):
+        zone = uhf_dv_simplex_zone()
+        for ch in zone.channels:
+            assert ch.contact == "Local"
 
 
 class TestPmr446:

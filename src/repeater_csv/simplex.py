@@ -24,6 +24,7 @@ def hotspot_zone() -> AnytoneZone:
             bandwidth="12.5K",
             color_code=1,
             slot=1,
+            contact="Local",
         ),
         AnytoneChannel(
             name="HS 438 SIMPLEX",
@@ -33,6 +34,7 @@ def hotspot_zone() -> AnytoneZone:
             bandwidth="12.5K",
             color_code=1,
             slot=1,
+            contact="Local",
         ),
         AnytoneChannel(
             name="HS RPT TS1",
@@ -42,6 +44,7 @@ def hotspot_zone() -> AnytoneZone:
             bandwidth="12.5K",
             color_code=1,
             slot=1,
+            contact="Local",
         ),
         AnytoneChannel(
             name="HS RPT TS2",
@@ -51,6 +54,7 @@ def hotspot_zone() -> AnytoneZone:
             bandwidth="12.5K",
             color_code=1,
             slot=2,
+            contact="Local",
         ),
     ]
     return AnytoneZone(name="HOTSPOT", channels=channels)
@@ -114,6 +118,7 @@ def vhf_dv_simplex_zone() -> AnytoneZone:
         bandwidth="12.5K",
         color_code=1,
         slot=1,
+        contact="Local",
     )
     return AnytoneZone(name="VHF DV SIMPLEX", channels=[ch])
 
@@ -137,6 +142,7 @@ def uhf_dv_simplex_zone() -> AnytoneZone:
                 bandwidth="12.5K",
                 color_code=1,
                 slot=1,
+                contact="Local",
             )
         )
     return AnytoneZone(name="UHF DV SIMPLEX", channels=channels)

@@ -8,7 +8,7 @@ Covers 2m and 70cm bands, both analog (FM) and digital (DMR) repeaters.
 
 - **Channel.CSV** - All channels with the full column set the AT-D878UV CPS expects (analog + digital)
 - **Zone.CSV** - Repeater channels grouped by UK region, band, and mode (e.g. "NE 2m FM", "LONDON 70cm DMR"), plus static simplex/utility zones
-- **TalkGroups.CSV** - Default UK DMR talkgroups (Local, UK Wide, Regional, BM Parrot)
+- **TalkGroups.CSV** - UK-relevant DMR talkgroups fetched from the BrandMeister API
 
 ## Install
 
@@ -61,6 +61,10 @@ Eight additional zones are included with every codeplug:
 | PMR446 | PMR 1–16 (16ch) | 446.00625–446.19375 MHz, TX prohibited |
 | ISS | 7ch | Doppler-shifted downlinks + cross-band repeater |
 | MARINE VHF | 22ch | Simplex-only channels, TX prohibited |
+
+### BrandMeister talkgroups
+
+Talkgroups are fetched from the [BrandMeister API](https://api.brandmeister.network/v2/talkgroup/) at runtime and filtered to a curated set of ~22 UK-relevant IDs (e.g. Local, UK Wide, Regional, TAC channels, BM Parrot). All DMR channels default to TG9 (Local).
 
 ### Frequency mapping
 

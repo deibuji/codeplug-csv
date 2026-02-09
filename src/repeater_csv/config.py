@@ -138,10 +138,19 @@ TALKGROUP_COLUMNS = [
     "Call Alert",
 ]
 
-# Default UK DMR talkgroups
-DEFAULT_TALKGROUPS = [
-    {"name": "Local", "id": 9, "call_type": "Group Call", "alert": "None"},
-    {"name": "UK Wide", "id": 235, "call_type": "Group Call", "alert": "None"},
-    {"name": "Regional", "id": 8, "call_type": "Group Call", "alert": "None"},
-    {"name": "BM Parrot", "id": 9990, "call_type": "Private Call", "alert": "None"},
-]
+# ---------- BrandMeister API ----------
+
+BRANDMEISTER_API_URL = "https://api.brandmeister.network/v2"
+
+CURATED_TALKGROUP_IDS: set[int] = {
+    8, 9, 91, 92, 93, 98,
+    235, 901, 902, 903,
+    2350, 2351, 2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359,
+    4000, 9990, 234997,
+}
+
+PRIVATE_CALL_IDS: set[int] = {9990, 234997}
+
+TALKGROUP_NAME_OVERRIDES: dict[int, str] = {
+    9: "Local",  # Must match channel contact field
+}

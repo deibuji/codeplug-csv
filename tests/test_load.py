@@ -9,7 +9,7 @@ import pytest
 
 from repeater_csv.config import CHANNEL_COLUMNS, TALKGROUP_COLUMNS, ZONE_COLUMNS
 from repeater_csv.load import write_channels, write_talkgroups, write_zones
-from repeater_csv.models import AnytoneChannel, AnytoneZone
+from repeater_csv.models import AnytoneChannel, AnytoneZone, TalkGroup
 
 
 @pytest.fixture
@@ -143,20 +143,28 @@ class TestWriteZones:
         assert len(members) == 2
 
 
+@pytest.fixture
+def sample_talkgroups():
+    return [
+        TalkGroup(name="Local", radio_id=9),
+        TalkGroup(name="UK Wide", radio_id=235),
+    ]
+
+
 class TestWriteTalkgroups:
-    def test_creates_file(self, output_dir):
-        path = write_talkgroups(output_dir)
+    def test_creates_file(self, sample_talkgroups, output_dir):
+        path = write_talkgroups(sample_talkgroups, output_dir)
         assert path.exists()
         assert path.name == "TalkGroups.CSV"
 
-    def test_has_correct_columns(self, output_dir):
-        write_talkgroups(output_dir)
+    def test_has_correct_columns(self, sample_talkgroups, output_dir):
+        write_talkgroups(sample_talkgroups, output_dir)
         with open(output_dir / "TalkGroups.CSV") as f:
             reader = csv.DictReader(f)
             assert reader.fieldnames == TALKGROUP_COLUMNS
 
-    def test_default_talkgroups(self, output_dir):
-        write_talkgroups(output_dir)
+    def test_talkgroups(self, sample_talkgroups, output_dir):
+        write_talkgroups(sample_talkgroups, output_dir)
         with open(output_dir / "TalkGroups.CSV") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
