@@ -19,6 +19,17 @@ uv pip install -e ".[dev]"
 
 ## Usage
 
+The project includes a [Taskfile](https://taskfile.dev/) for common commands:
+
+```bash
+task test                        # Run the test suite
+task run                         # Generate CSVs in output/
+task run -- --locator IO91       # Pass extra CLI args
+task                             # Run tests then generate output
+```
+
+Or call the CLI directly:
+
 ```bash
 repeater-csv -o output/                    # All 2m + 70cm repeaters
 repeater-csv -b 70cm -o output/            # 70cm only
@@ -73,7 +84,7 @@ The API's `tx` field (what the repeater transmits) maps to the Anytone's `Receiv
 ## Tests
 
 ```bash
-pytest
+task test
 ```
 
 ## License
