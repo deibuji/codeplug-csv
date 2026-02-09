@@ -81,6 +81,10 @@ Talkgroups are fetched from the [BrandMeister API](https://api.brandmeister.netw
 
 The API's `tx` field (what the repeater transmits) maps to the Anytone's `Receive Frequency` (what the radio listens to), and vice versa.
 
+## CI
+
+A GitHub Actions workflow builds the codeplug every Monday and on manual dispatch. The zipped CSV files are uploaded as a `codeplug` build artifact.
+
 ## Tests
 
 ```bash
