@@ -40,7 +40,9 @@ class AnytoneChannel:
     contact_call_type: str = "Group Call"
     # For zone assignment
     band: str = ""  # "2m" or "70cm"
-    mode: str = ""  # "FM" or "DMR"
+    mode: str = ""  # "ANL" or "DMR"
+    region: str = ""  # UK region, e.g. "NE", "SW", "LONDON"
+    rpt_type: str = ""  # "RPT" or "GW"
 
 
 @dataclass

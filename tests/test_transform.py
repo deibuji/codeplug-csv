@@ -136,7 +136,7 @@ class TestTransformRepeaters:
     def test_analog_ctcss(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb3cd = next(ch for ch in channels if "GB3CD" in ch.name and ch.mode == "FM")
+        gb3cd = next(ch for ch in channels if "GB3CD" in ch.name and ch.mode == "ANL")
         assert gb3cd.ctcss_encode == "118.8"
 
     def test_analog_bandwidth_25k(self, sample_repeaters):
@@ -150,3 +150,37 @@ class TestTransformRepeaters:
         channels = transform_repeaters(filtered)
         for ch in channels:
             assert len(ch.name) <= 16, f"Channel name too long: {ch.name!r}"
+
+    def test_analog_mode_is_anl(self, sample_repeaters):
+        filtered = filter_repeaters(sample_repeaters)
+        channels = transform_repeaters(filtered)
+        gb3cd = next(ch for ch in channels if "GB3CD" in ch.name)
+        assert gb3cd.mode == "ANL"
+
+    def test_region_from_locator(self, sample_repeaters):
+        filtered = filter_repeaters(sample_repeaters)
+        channels = transform_repeaters(filtered)
+        # GB3CD-L has locator IO94DR → NE
+        gb3cd = next(ch for ch in channels if "GB3CD" in ch.name)
+        assert gb3cd.region == "NE"
+        # GB7AA has locator IO91WM → LONDON
+        gb7aa = next(ch for ch in channels if "GB7AA" in ch.name)
+        assert gb7aa.region == "LONDON"
+        # GB7AV has locator IO81RJ → SW (column R > L)
+        gb7av = next(ch for ch in channels if "GB7AV" in ch.name)
+        assert gb7av.region == "SW"
+
+    def test_rpt_type_default_is_rpt(self, sample_repeaters):
+        filtered = filter_repeaters(sample_repeaters)
+        channels = transform_repeaters(filtered)
+        # Non-gateway fixtures should all be RPT
+        non_gw = [ch for ch in channels if "GB3GW" not in ch.name]
+        for ch in non_gw:
+            assert ch.rpt_type == "RPT"
+
+    def test_rpt_type_gateway(self, sample_repeaters):
+        """Gateway type (AG) should produce rpt_type='GW'."""
+        filtered = filter_repeaters(sample_repeaters)
+        channels = transform_repeaters(filtered)
+        gw_ch = next(ch for ch in channels if "GB3GW" in ch.name)
+        assert gw_ch.rpt_type == "GW"

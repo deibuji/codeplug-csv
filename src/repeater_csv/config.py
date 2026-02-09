@@ -6,6 +6,9 @@ BANDS = ("2m", "70cm")
 # Repeater types to exclude (beacons, TV, packet beacons, digi beacons)
 EXCLUDED_TYPES = {"BN", "TV", "PB", "DB"}
 
+# Gateway types (analog gateways, digital gateways)
+GATEWAY_TYPES = {"AG", "DG"}
+
 # Maximum channel name / zone name length for Anytone
 MAX_NAME_LENGTH = 16
 

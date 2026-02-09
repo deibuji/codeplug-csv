@@ -161,6 +161,24 @@
       "locator": "IO93GS",
       "dbwErp": 12,
       "extraDetails": null
+    },
+    {
+      "id": 900,
+      "fac": true,
+      "type": "AG",
+      "status": "OPERATIONAL",
+      "keeperCallsign": "G0STU",
+      "town": "OXFORD",
+      "modeCodes": ["A"],
+      "tx": 145712500,
+      "repeater": "GB3GW",
+      "rx": 145112500,
+      "ctcss": 82.5,
+      "txbw": 12.5,
+      "band": "2M",
+      "locator": "IO91NP",
+      "dbwErp": 6,
+      "extraDetails": null
     }
   ]
 }

@@ -12,10 +12,10 @@ logger = logging.getLogger(__name__)
 
 
 def assign_zones(channels: list[AnytoneChannel]) -> list[AnytoneZone]:
-    """Group channels into zones by band + mode, splitting at MAX_ZONE_CHANNELS."""
+    """Group channels into zones by region + mode + type, splitting at MAX_ZONE_CHANNELS."""
     groups: dict[str, list[AnytoneChannel]] = defaultdict(list)
     for ch in channels:
-        key = f"{ch.band} {ch.mode}"
+        key = f"{ch.region} {ch.mode} {ch.rpt_type}"
         groups[key].append(ch)
 
     zones: list[AnytoneZone] = []

@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 import re
 
-from .config import EXCLUDED_TYPES, MAX_NAME_LENGTH
+from .config import EXCLUDED_TYPES, GATEWAY_TYPES, MAX_NAME_LENGTH
 from .models import AnytoneChannel, Repeater
+from .regions import locator_to_region
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,8 @@ def transform_repeaters(
         has_analog = "A" in r.mode_codes
         has_dmr = any(mc == "M" or mc.startswith("M:") for mc in r.mode_codes)
         band = _band_label(r.band)
+        region = locator_to_region(r.locator)
+        rpt_type = "GW" if r.type in GATEWAY_TYPES else "RPT"
 
         # API tx = repeater transmits → radio receives
         rx_freq = _hz_to_mhz(r.tx)
@@ -123,7 +126,9 @@ def transform_repeaters(
                     ctcss_decode=_ctcss_str(r.ctcss),
                     power=power,
                     band=band,
-                    mode="FM",
+                    mode="ANL",
+                    region=region,
+                    rpt_type=rpt_type,
                 )
             )
 
@@ -143,6 +148,8 @@ def transform_repeaters(
                     contact_call_type="Group Call",
                     band=band,
                     mode="DMR",
+                    region=region,
+                    rpt_type=rpt_type,
                 )
             )
 
