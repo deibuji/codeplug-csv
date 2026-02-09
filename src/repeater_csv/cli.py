@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> None:
     channels = transform_repeaters(filtered, power=args.power)
     repeater_zones = assign_zones(channels)
     static_zones = get_static_zones()
-    all_zones = repeater_zones + static_zones
+    all_zones = static_zones + repeater_zones
 
     # Derive channel list from zone order so channel numbers align with zones
     all_channels = [ch for zone in all_zones for ch in zone.channels]

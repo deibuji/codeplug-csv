@@ -49,10 +49,11 @@ The RSGB API encodes DMR color codes in `modeCodes` as `M:N` (e.g. `["M:3"]` = c
 
 ### Static zones
 
-Seven additional zones are included with every codeplug:
+Eight additional zones are included with every codeplug:
 
 | Zone | Channels | Notes |
 |------|----------|-------|
+| HOTSPOT | 4ch | DMR hotspot on 434.000/438.800 MHz, simplex + repeater modes |
 | VHF FM SIMPLEX | V16–V46 (31ch) | 145.200–145.575 MHz, V40 = calling channel |
 | UHF FM SIMPLEX | U272–U288 (17ch) | 433.400–433.600 MHz, U280 = calling channel |
 | VHF DV SIMPLEX | 2M DV CALL (1ch) | 144.6125 MHz, DMR CC1 TS1 |

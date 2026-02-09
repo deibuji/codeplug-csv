@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from repeater_csv.simplex import (
     get_static_zones,
+    hotspot_zone,
     iss_zone,
     marine_vhf_zone,
     pmr446_zone,
@@ -12,6 +13,63 @@ from repeater_csv.simplex import (
     vhf_dv_simplex_zone,
     vhf_fm_simplex_zone,
 )
+
+
+class TestHotspot:
+    def test_zone_name(self):
+        zone = hotspot_zone()
+        assert zone.name == "HOTSPOT"
+
+    def test_channel_count(self):
+        zone = hotspot_zone()
+        assert len(zone.channels) == 4
+
+    def test_simplex_channels_are_simplex(self):
+        zone = hotspot_zone()
+        # First two channels are simplex (RX == TX)
+        assert zone.channels[0].rx_freq == zone.channels[0].tx_freq
+        assert zone.channels[0].rx_freq == "434.00000"
+        assert zone.channels[1].rx_freq == zone.channels[1].tx_freq
+        assert zone.channels[1].rx_freq == "438.80000"
+
+    def test_repeater_channels(self):
+        zone = hotspot_zone()
+        # HS RPT TS1 and HS RPT TS2
+        for ch in zone.channels[2:]:
+            assert ch.rx_freq == "434.00000"
+            assert ch.tx_freq == "438.80000"
+
+    def test_ts1_slot(self):
+        zone = hotspot_zone()
+        ts1 = zone.channels[2]
+        assert ts1.name == "HS RPT TS1"
+        assert ts1.slot == 1
+
+    def test_ts2_slot(self):
+        zone = hotspot_zone()
+        ts2 = zone.channels[3]
+        assert ts2.name == "HS RPT TS2"
+        assert ts2.slot == 2
+
+    def test_all_digital(self):
+        zone = hotspot_zone()
+        for ch in zone.channels:
+            assert ch.channel_type == "D-Digital"
+
+    def test_all_cc1(self):
+        zone = hotspot_zone()
+        for ch in zone.channels:
+            assert ch.color_code == 1
+
+    def test_all_12_5k(self):
+        zone = hotspot_zone()
+        for ch in zone.channels:
+            assert ch.bandwidth == "12.5K"
+
+    def test_name_lengths(self):
+        zone = hotspot_zone()
+        for ch in zone.channels:
+            assert len(ch.name) <= 16
 
 
 class TestVhfFmSimplex:
@@ -331,19 +389,20 @@ class TestMarineVhf:
 
 
 class TestGetStaticZones:
-    def test_returns_seven_zones(self):
+    def test_returns_eight_zones(self):
         zones = get_static_zones()
-        assert len(zones) == 7
+        assert len(zones) == 8
 
     def test_total_channel_count(self):
         zones = get_static_zones()
         total = sum(len(z.channels) for z in zones)
-        assert total == 102
+        assert total == 106
 
     def test_zone_names(self):
         zones = get_static_zones()
         names = [z.name for z in zones]
         assert names == [
+            "HOTSPOT",
             "VHF FM SIMPLEX",
             "UHF FM SIMPLEX",
             "VHF DV SIMPLEX",

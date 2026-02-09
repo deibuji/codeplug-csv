@@ -10,6 +10,52 @@ def _mhz_str(freq: float) -> str:
     return f"{freq:.5f}"
 
 
+# ---------- Hotspot ----------
+
+
+def hotspot_zone() -> AnytoneZone:
+    """DMR hotspot channels on UK-allocated frequencies 434.000 and 438.800 MHz."""
+    channels = [
+        AnytoneChannel(
+            name="HS 434 SIMPLEX",
+            rx_freq=_mhz_str(434.000),
+            tx_freq=_mhz_str(434.000),
+            channel_type="D-Digital",
+            bandwidth="12.5K",
+            color_code=1,
+            slot=1,
+        ),
+        AnytoneChannel(
+            name="HS 438 SIMPLEX",
+            rx_freq=_mhz_str(438.800),
+            tx_freq=_mhz_str(438.800),
+            channel_type="D-Digital",
+            bandwidth="12.5K",
+            color_code=1,
+            slot=1,
+        ),
+        AnytoneChannel(
+            name="HS RPT TS1",
+            rx_freq=_mhz_str(434.000),
+            tx_freq=_mhz_str(438.800),
+            channel_type="D-Digital",
+            bandwidth="12.5K",
+            color_code=1,
+            slot=1,
+        ),
+        AnytoneChannel(
+            name="HS RPT TS2",
+            rx_freq=_mhz_str(434.000),
+            tx_freq=_mhz_str(438.800),
+            channel_type="D-Digital",
+            bandwidth="12.5K",
+            color_code=1,
+            slot=2,
+        ),
+    ]
+    return AnytoneZone(name="HOTSPOT", channels=channels)
+
+
 # ---------- VHF FM Simplex ----------
 
 
@@ -226,6 +272,7 @@ def marine_vhf_zone() -> AnytoneZone:
 def get_static_zones() -> list[AnytoneZone]:
     """Return all static simplex/utility zones."""
     return [
+        hotspot_zone(),
         vhf_fm_simplex_zone(),
         uhf_fm_simplex_zone(),
         vhf_dv_simplex_zone(),
