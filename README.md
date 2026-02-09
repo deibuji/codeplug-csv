@@ -1,4 +1,4 @@
-# repeater-csv
+# codeplug-csv
 
 CLI tool that pulls UK amateur radio repeater data from the [RSGB ETCC API](https://api-beta.rsgb.online/) and generates CSV files importable by the Anytone AT-D878UV CPS software.
 
@@ -31,18 +31,18 @@ task                             # Run tests then generate output
 Or call the CLI directly:
 
 ```bash
-repeater-csv -o output/                    # All 2m + 70cm repeaters
-repeater-csv -b 70cm -o output/            # 70cm only
-repeater-csv -b 2m 70cm -o output/         # Explicit both bands
-repeater-csv --locator IO91 -o output/     # Filter by grid square prefix
-repeater-csv --power Mid -o output/        # Set transmit power (Turbo/High/Mid/Low)
-repeater-csv -v -o output/                 # Verbose logging
+codeplug-csv -o output/                    # All 2m + 70cm repeaters
+codeplug-csv -b 70cm -o output/            # 70cm only
+codeplug-csv -b 2m 70cm -o output/         # Explicit both bands
+codeplug-csv --locator IO91 -o output/     # Filter by grid square prefix
+codeplug-csv --power Mid -o output/        # Set transmit power (Turbo/High/Mid/Low)
+codeplug-csv -v -o output/                 # Verbose logging
 ```
 
 Or run as a module:
 
 ```bash
-python -m repeater_csv -o output/
+python -m codeplug_csv -o output/
 ```
 
 ## How it works

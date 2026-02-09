@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from repeater_csv.config import CHANNEL_COLUMNS, TALKGROUP_COLUMNS, ZONE_COLUMNS
-from repeater_csv.load import write_channels, write_talkgroups, write_zones
-from repeater_csv.models import AnytoneChannel, AnytoneZone, TalkGroup
+from codeplug_csv.config import CHANNEL_COLUMNS, TALKGROUP_COLUMNS, ZONE_COLUMNS
+from codeplug_csv.load import write_channels, write_talkgroups, write_zones
+from codeplug_csv.models import AnytoneChannel, AnytoneZone, TalkGroup
 
 
 @pytest.fixture

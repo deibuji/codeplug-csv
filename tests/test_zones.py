@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from repeater_csv.models import AnytoneChannel
-from repeater_csv.zones import assign_zones
+from codeplug_csv.models import AnytoneChannel
+from codeplug_csv.zones import assign_zones
 
 
 def _make_channel(

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from repeater_csv.regions import locator_to_region
+from codeplug_csv.regions import locator_to_region
 
 
 class TestLocatorToRegion:

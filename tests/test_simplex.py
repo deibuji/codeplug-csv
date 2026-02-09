@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from repeater_csv.simplex import (
+from codeplug_csv.simplex import (
     get_static_zones,
     hotspot_zone,
     iss_zone,

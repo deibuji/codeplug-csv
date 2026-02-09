@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from repeater_csv.extract import RSGBClient
-from repeater_csv.models import Repeater
+from codeplug_csv.extract import RSGBClient
+from codeplug_csv.models import Repeater
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

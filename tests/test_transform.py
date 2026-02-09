@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from repeater_csv.models import Repeater
-from repeater_csv.transform import (
+from codeplug_csv.models import Repeater
+from codeplug_csv.transform import (
     _bandwidth_str,
     _clean_callsign,
     _ctcss_str,
@@ -72,14 +72,14 @@ class TestHelpers:
         assert _clean_callsign("GB3WR-R") == "GB3WR"
 
     def test_make_channel_name(self):
-        from repeater_csv.transform import _make_channel_name
+        from codeplug_csv.transform import _make_channel_name
 
         name = _make_channel_name("GB3CD-L", "FM")
         assert name == "GB3CD FM"
         assert len(name) <= 16
 
     def test_make_channel_name_ts_suffix(self):
-        from repeater_csv.transform import _make_channel_name
+        from codeplug_csv.transform import _make_channel_name
 
         assert _make_channel_name("GB7AA", "TS1") == "GB7AA TS1"
         assert _make_channel_name("GB7AA", "TS2") == "GB7AA TS2"

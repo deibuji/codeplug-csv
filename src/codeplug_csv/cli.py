@@ -1,4 +1,4 @@
-"""CLI entry point for repeater-csv."""
+"""CLI entry point for codeplug-csv."""
 
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ from .simplex import get_static_zones
 from .transform import filter_repeaters, transform_repeaters
 from .zones import assign_zones
 
-logger = logging.getLogger("repeater_csv")
+logger = logging.getLogger("codeplug_csv")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="repeater-csv",
+        prog="codeplug-csv",
         description="Generate Anytone AT-D878UV CSV files from RSGB repeater data",
     )
     parser.add_argument(

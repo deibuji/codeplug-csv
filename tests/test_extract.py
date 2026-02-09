@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from repeater_csv.config import CURATED_TALKGROUP_IDS
-from repeater_csv.extract import BrandMeisterClient
+from codeplug_csv.config import CURATED_TALKGROUP_IDS
+from codeplug_csv.extract import BrandMeisterClient
 
 
 class TestBrandMeisterFilterAndParse:

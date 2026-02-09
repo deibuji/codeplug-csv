@@ -7,7 +7,7 @@ tasks:
 
   run:
     desc: Generate CSV files in output/
-    cmd: .venv/bin/repeater-csv -o output/ {{.CLI_ARGS}}
+    cmd: .venv/bin/codeplug-csv -o output/ {{.CLI_ARGS}}
 
   default:
     desc: Run tests then generate output
