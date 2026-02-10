@@ -18,6 +18,7 @@ dev = [
 
 [project.scripts]
 codeplug-csv = "codeplug_csv.cli:main"
+codeplug-csv-flash = "codeplug_csv.flash_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

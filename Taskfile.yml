@@ -9,6 +9,22 @@ tasks:
     desc: Generate CSV files in output/
     cmd: .venv/bin/codeplug-csv -o output/ {{.CLI_ARGS}}
 
+  prepare-flash:
+    desc: Generate CSVs + dmrconfig .conf (dry run) for a Radio ID
+    requires:
+      vars: [RADIO_ID]
+    cmds:
+      - task: run
+      - .venv/bin/python -m codeplug_csv.flash_cli --radio-id {{.RADIO_ID}} --output-dir output/ --users-csv output/user.csv {{.CLI_ARGS}}
+
+  flash:
+    desc: Generate CSVs + dmrconfig .conf and flash via dmrconfig
+    requires:
+      vars: [RADIO_ID]
+    cmds:
+      - task: run
+      - .venv/bin/python -m codeplug_csv.flash_cli --radio-id {{.RADIO_ID}} --output-dir output/ --users-csv output/user.csv --write {{.CLI_ARGS}}
+
   default:
     desc: Run tests then generate output
     cmds:

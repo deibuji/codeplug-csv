@@ -26,6 +26,8 @@ The project includes a [Taskfile](https://taskfile.dev/) for common commands:
 task test                        # Run the test suite
 task run                         # Generate CSVs in output/
 task run -- --locator IO91       # Pass extra CLI args
+task prepare-flash RADIO_ID=2351234   # Build dmrconfig .conf from CSVs + user.csv
+task flash RADIO_ID=2351234            # Build + write to radio via dmrconfig
 task                             # Run tests then generate output
 ```
 
@@ -45,6 +47,51 @@ Or run as a module:
 ```bash
 python -m codeplug_csv -o output/
 ```
+
+## Experimental direct flash workflow
+
+This repo now includes an optional `dmrconfig`-based path to generate an actual flashable radio config and write it directly over USB:
+
+```bash
+task prepare-flash RADIO_ID=2351234
+# Generates output/codeplug-2351234.conf and prints the flash command
+
+task flash RADIO_ID=2351234
+# Runs dmrconfig -c output/codeplug-2351234.conf
+```
+
+Or run the flash CLI directly:
+
+```bash
+python -m codeplug_csv.flash_cli --radio-id 2351234 --output-dir output --users-csv output/user.csv
+python -m codeplug_csv.flash_cli --radio-id 2351234 --output-dir output --users-csv output/user.csv --write
+```
+
+How it works:
+
+1. `task run` generates `Channel.CSV`, `Zone.CSV`, `TalkGroups.CSV`, and `user.csv`
+2. `codeplug-csv-flash` looks up your `RADIO_ID` in `user.csv`
+3. It renders a `dmrconfig` `.conf` (e.g. `output/codeplug-2351234.conf`)
+4. With `--write`, it runs `dmrconfig -c` to flash the radio
+
+Notes:
+
+- `dmrconfig` must be installed separately and available on `PATH`
+- This path is intentionally explicit: without `--write`, it only generates/prints commands (dry-run)
+- The `.conf` output is open text; it is not an Anytone CPS `.rdt` binary
+
+## Feasibility notes (as of February 10, 2026)
+
+- Vendor CPS workflows for these radios are largely Windows-centric and use proprietary binary codeplug files.
+- Open-source alternatives exist: `dmrconfig` and `QDMR` both support Anytone D878-class devices and can program radios directly.
+- Practical OS-agnostic architecture: generate open config artifacts in this project and flash via an open CLI backend (`dmrconfig`), rather than attempting direct `.rdt` binary generation.
+
+Reference links:
+
+- dmrconfig repo: https://github.com/OpenRTX/dmrconfig
+- dmrconfig man page: https://manpages.debian.org/testing/dmrconfig/dmrconfig.1.en.html
+- QDMR docs (supported radios): https://dm3mat.darc.de/qdmr/manual/ch01s03.html
+- QDMR repo: https://github.com/hmatuschek/qdmr
 
 ## How it works
 
