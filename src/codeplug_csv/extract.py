@@ -10,11 +10,12 @@ import requests
 from .config import (
     API_BASE_URL,
     BRANDMEISTER_API_URL,
-    CURATED_TALKGROUP_IDS,
     MAX_NAME_LENGTH,
+    NON_UK_CURATED_IDS,
     PRIVATE_CALL_IDS,
     RADIOID_CSV_URL,
     TALKGROUP_NAME_OVERRIDES,
+    UK_TG_PREFIX,
 )
 from .models import Repeater, TalkGroup
 
@@ -80,7 +81,7 @@ class BrandMeisterClient:
 
     @staticmethod
     def _filter_and_parse(data: dict) -> list[TalkGroup]:
-        """Filter API response to curated talkgroup IDs and return TalkGroup list."""
+        """Filter API response to UK-prefix and curated talkgroup IDs."""
         if not data:
             logger.warning("Empty response from BrandMeister API")
             return []
@@ -94,7 +95,9 @@ class BrandMeisterClient:
             except (ValueError, TypeError):
                 continue
 
-            if tg_id not in CURATED_TALKGROUP_IDS:
+            is_uk = key.startswith(UK_TG_PREFIX)
+            is_curated = tg_id in NON_UK_CURATED_IDS
+            if not is_uk and not is_curated:
                 continue
 
             found_ids.add(tg_id)
@@ -113,7 +116,7 @@ class BrandMeisterClient:
                 )
             )
 
-        missing = CURATED_TALKGROUP_IDS - found_ids
+        missing = NON_UK_CURATED_IDS - found_ids
         for tg_id in sorted(missing):
             tg_name = TALKGROUP_NAME_OVERRIDES.get(tg_id, str(tg_id))
             tg_name = tg_name[:MAX_NAME_LENGTH]

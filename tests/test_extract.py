@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from unittest.mock import MagicMock, patch
 
-from codeplug_csv.config import CURATED_TALKGROUP_IDS
+from codeplug_csv.config import NON_UK_CURATED_IDS, UK_TG_PREFIX
 from codeplug_csv.extract import BrandMeisterClient, RadioIDClient
 
 
@@ -15,10 +15,11 @@ class TestBrandMeisterFilterAndParse:
         ids = {tg.radio_id for tg in talkgroups}
         assert 12345 not in ids
         assert 99999 not in ids
+        assert 234000 not in ids
 
     def test_returns_correct_count(self, sample_bm_data):
         talkgroups = BrandMeisterClient._filter_and_parse(sample_bm_data)
-        assert len(talkgroups) == 23
+        assert len(talkgroups) == 34
 
     def test_sorted_by_radio_id(self, sample_bm_data):
         talkgroups = BrandMeisterClient._filter_and_parse(sample_bm_data)
@@ -37,6 +38,8 @@ class TestBrandMeisterFilterAndParse:
 
     def test_private_call_ids(self, sample_bm_data):
         talkgroups = BrandMeisterClient._filter_and_parse(sample_bm_data)
+        tg4000 = next(tg for tg in talkgroups if tg.radio_id == 4000)
+        assert tg4000.call_type == "Private Call"
         tg9990 = next(tg for tg in talkgroups if tg.radio_id == 9990)
         assert tg9990.call_type == "Private Call"
         tg234997 = next(tg for tg in talkgroups if tg.radio_id == 234997)
@@ -45,7 +48,7 @@ class TestBrandMeisterFilterAndParse:
     def test_group_call_ids(self, sample_bm_data):
         talkgroups = BrandMeisterClient._filter_and_parse(sample_bm_data)
         for tg in talkgroups:
-            if tg.radio_id not in {9990, 234997}:
+            if tg.radio_id not in {4000, 9990, 234997}:
                 assert tg.call_type == "Group Call"
 
     def test_all_call_alert_none(self, sample_bm_data):
@@ -59,13 +62,15 @@ class TestBrandMeisterFilterAndParse:
             talkgroups = BrandMeisterClient._filter_and_parse(partial_data)
         assert "not in API response" in caplog.text
         ids = {tg.radio_id for tg in talkgroups}
-        assert ids == CURATED_TALKGROUP_IDS
+        # UK-prefix TGs from the data (235) plus all non-UK curated IDs
+        expected = {9, 235} | NON_UK_CURATED_IDS
+        assert ids == expected
 
     def test_invalid_keys_skipped(self):
         data = {"abc": "Invalid", "9": "Local"}
         talkgroups = BrandMeisterClient._filter_and_parse(data)
         ids = {tg.radio_id for tg in talkgroups}
-        assert ids == CURATED_TALKGROUP_IDS
+        assert ids == NON_UK_CURATED_IDS
         assert any(tg.radio_id == 9 and tg.name == "Local" for tg in talkgroups)
 
     def test_empty_response_returns_empty_list(self, caplog):
@@ -73,6 +78,28 @@ class TestBrandMeisterFilterAndParse:
             talkgroups = BrandMeisterClient._filter_and_parse({})
         assert talkgroups == []
         assert "Empty response" in caplog.text
+
+    def test_uk_prefix_tgs_included_dynamically(self, sample_bm_data):
+        talkgroups = BrandMeisterClient._filter_and_parse(sample_bm_data)
+        ids = {tg.radio_id for tg in talkgroups}
+        for tg_id in [23500, 23510, 23520, 23530, 23540, 23550, 23560, 23570, 23580, 23590]:
+            assert tg_id in ids
+
+    def test_non_235_prefix_excluded(self):
+        data = {"234000": "Some 234 TG", "23599": "A UK TG", "9": "Local"}
+        talkgroups = BrandMeisterClient._filter_and_parse(data)
+        ids = {tg.radio_id for tg in talkgroups}
+        assert 234000 not in ids
+        assert 23599 in ids
+
+    def test_uk_prefix_not_backfilled(self, caplog):
+        data = {"9": "Local"}
+        with caplog.at_level(logging.INFO):
+            talkgroups = BrandMeisterClient._filter_and_parse(data)
+        ids = {tg.radio_id for tg in talkgroups}
+        # No 235-prefix IDs should be backfilled -- only non-UK curated IDs
+        uk_prefix_ids = {tg_id for tg_id in ids if str(tg_id).startswith(UK_TG_PREFIX)}
+        assert uk_prefix_ids == set()
 
 
 class TestRadioIDClient:

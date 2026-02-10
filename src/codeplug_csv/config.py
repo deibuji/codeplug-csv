@@ -142,14 +142,15 @@ TALKGROUP_COLUMNS = [
 
 BRANDMEISTER_API_URL = "https://api.brandmeister.network/v2"
 
-CURATED_TALKGROUP_IDS: set[int] = {
+UK_TG_PREFIX = "235"
+
+NON_UK_CURATED_IDS: set[int] = {
     8, 9, 91, 92, 93, 98,
-    235, 901, 902, 903,
-    2350, 2351, 2352, 2353, 2354, 2355, 2356, 2357, 2358, 2359,
+    901, 902, 903,
     4000, 9990, 234997,
 }
 
-PRIVATE_CALL_IDS: set[int] = {9990, 234997}
+PRIVATE_CALL_IDS: set[int] = {4000, 9990, 234997}
 
 # ---------- RadioID ----------
 
