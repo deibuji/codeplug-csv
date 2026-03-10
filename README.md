@@ -1,12 +1,12 @@
 # codeplug-csv
 
-CLI tool that pulls UK amateur radio repeater data from the [RSGB ETCC API](https://api-beta.rsgb.online/) and generates CSV files importable by the Anytone AT-D878UV CPS software.
+CLI tool that pulls UK amateur radio repeater data from the [RSGB ETCC API](https://api-beta.rsgb.online/) and generates CSV files importable by the Anytone CPS software.
 
 Covers 2m and 70cm bands, both analog (FM) and digital (DMR) repeaters.
 
 ## Output files
 
-- **Channel.CSV** - All channels with the full column set the AT-D878UV CPS expects (analog + digital)
+- **Channel.CSV** - All channels with the full column set the Anytone CPS expects (analog + digital)
 - **Zone.CSV** - Repeater channels grouped by UK region, band, and mode (e.g. "NE 2m FM", "LONDON 70cm DMR"), plus static simplex/utility zones
 - **TalkGroups.CSV** - UK-relevant DMR talkgroups fetched from the BrandMeister API
 - **user.csv** - Full worldwide DMR contact list downloaded from [RadioID](https://www.radioid.net/) (importable as a Digital Contact List in the CPS)

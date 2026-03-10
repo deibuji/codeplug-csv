@@ -1,4 +1,4 @@
-"""Zone assignment for Anytone AT-D878UV."""
+"""Zone assignment for Anytone."""
 
 from __future__ import annotations
 

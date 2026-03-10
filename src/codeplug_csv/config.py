@@ -1,4 +1,4 @@
-"""Constants and defaults for Anytone AT-D878UV CPS import files."""
+"""Constants and defaults for Anytone CPS import files."""
 
 API_BASE_URL = "https://api-beta.rsgb.online"
 BANDS = ("2m", "70cm")
@@ -12,7 +12,7 @@ GATEWAY_TYPES = {"AG", "DG"}
 # Maximum channel name / zone name length for Anytone
 MAX_NAME_LENGTH = 16
 
-# Maximum channels per zone on the AT-D878UV
+# Maximum channels per zone
 MAX_ZONE_CHANNELS = 250
 
 # ---------- Anytone Channel.CSV column definitions ----------
@@ -37,24 +37,24 @@ CHANNEL_COLUMNS = [
     "2Tone ID",
     "5Tone ID",
     "PTT ID",
-    "Color Code",
+    "RX Color Code",
     "Slot",
     "Scan List",
     "Receive Group List",
-    "TX Prohibit",
+    "PTT Prohibit",
     "Reverse",
-    "Simplex TDMA",
-    "TDMA Adaptive",
-    "Encryption Type",
+    "Idle TX",
+    "Slot Suit",
+    "AES Digital Encryption",
     "Digital Encryption",
     "Call Confirmation",
-    "Talk Around",
+    "Talk Around(Simplex)",
     "Work Alone",
     "Custom CTCSS",
     "2TONE Decode",
     "Ranging",
     "Through Mode",
-    "Digi APRS RX",
+    "APRS RX",
     "Analog APRS PTT Mode",
     "Digital APRS PTT Mode",
     "APRS Report Type",
@@ -62,6 +62,23 @@ CHANNEL_COLUMNS = [
     "Correct Frequency[Hz]",
     "SMS Confirmation",
     "Exclude channel from roaming",
+    "DMR MODE",
+    "DataACK Disable",
+    "R5ToneBot",
+    "R5ToneEot",
+    "Auto Scan",
+    "Ana Aprs Mute",
+    "Send Talker Aias",
+    "AnaAprsTxPath",
+    "ARC4",
+    "ex_emg_kind",
+    "idle_tx",
+    "Compand",
+    "DisturEn",
+    "DisturFreq",
+    "Rpga_Mdc",
+    "dmr_crc_ignore",
+    "TxCc",
 ]
 
 # Defaults for columns we don't map from the API
@@ -81,24 +98,24 @@ ANALOG_DEFAULTS = {
     "2Tone ID": "1",
     "5Tone ID": "1",
     "PTT ID": "Off",
-    "Color Code": "1",
+    "RX Color Code": "1",
     "Slot": "1",
     "Scan List": "None",
     "Receive Group List": "None",
-    "TX Prohibit": "Off",
+    "PTT Prohibit": "Off",
     "Reverse": "Off",
-    "Simplex TDMA": "Off",
-    "TDMA Adaptive": "Off",
-    "Encryption Type": "Normal Encryption",
+    "Idle TX": "Off",
+    "Slot Suit": "Off",
+    "AES Digital Encryption": "Normal Encryption",
     "Digital Encryption": "Off",
     "Call Confirmation": "Off",
-    "Talk Around": "Off",
+    "Talk Around(Simplex)": "Off",
     "Work Alone": "Off",
     "Custom CTCSS": "251.1",
     "2TONE Decode": "0",
     "Ranging": "Off",
     "Through Mode": "Off",
-    "Digi APRS RX": "Off",
+    "APRS RX": "Off",
     "Analog APRS PTT Mode": "Off",
     "Digital APRS PTT Mode": "Off",
     "APRS Report Type": "Off",
@@ -106,6 +123,23 @@ ANALOG_DEFAULTS = {
     "Correct Frequency[Hz]": "0",
     "SMS Confirmation": "Off",
     "Exclude channel from roaming": "0",
+    "DMR MODE": "1",
+    "DataACK Disable": "0",
+    "R5ToneBot": "0",
+    "R5ToneEot": "0",
+    "Auto Scan": "0",
+    "Ana Aprs Mute": "0",
+    "Send Talker Aias": "0",
+    "AnaAprsTxPath": "0",
+    "ARC4": "0",
+    "ex_emg_kind": "0",
+    "idle_tx": "0",
+    "Compand": "0",
+    "DisturEn": "0",
+    "DisturFreq": "0",
+    "Rpga_Mdc": "0",
+    "dmr_crc_ignore": "0",
+    "TxCc": "1",
 }
 
 DIGITAL_DEFAULTS = {

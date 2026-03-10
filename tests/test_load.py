@@ -89,7 +89,8 @@ class TestWriteChannels:
         digital = rows[1]
         assert digital["Channel Name"] == "GB7AA TS1"
         assert digital["Channel Type"] == "D-Digital"
-        assert digital["Color Code"] == "1"
+        assert digital["RX Color Code"] == "1"
+        assert digital["TxCc"] == "1"
         assert digital["Contact"] == "Local"
 
     def test_no_missing_columns(self, sample_channels, output_dir):
@@ -103,7 +104,7 @@ class TestWriteChannels:
 
 
     def test_tx_prohibit_on(self, output_dir):
-        """TX Prohibit field should be written to CSV."""
+        """PTT Prohibit field should be written to CSV."""
         ch = AnytoneChannel(
             name="PMR 1",
             rx_freq="446.00625",
@@ -115,7 +116,26 @@ class TestWriteChannels:
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             row = next(reader)
-        assert row["TX Prohibit"] == "On"
+        assert row["PTT Prohibit"] == "On"
+
+    def test_color_code_written_to_both_columns(self, output_dir):
+        """Color code must appear in both RX Color Code and TxCc columns."""
+        ch = AnytoneChannel(
+            name="GB7BS TS1",
+            rx_freq="439.45000",
+            tx_freq="430.85000",
+            channel_type="D-Digital",
+            color_code=3,
+            slot=1,
+            contact="Local",
+            contact_call_type="Group Call",
+        )
+        write_channels([ch], output_dir)
+        with open(output_dir / "Channel.CSV") as f:
+            reader = csv.DictReader(f)
+            row = next(reader)
+        assert row["RX Color Code"] == "3"
+        assert row["TxCc"] == "3"
 
 
 class TestWriteZones:
