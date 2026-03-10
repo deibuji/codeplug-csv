@@ -20,7 +20,7 @@ logger = logging.getLogger("codeplug_csv")
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="codeplug-csv",
-        description="Generate Anytone AT-D878UV CSV files from RSGB repeater data",
+        description="Generate Anytone CSV files from RSGB repeater data",
     )
     parser.add_argument(
         "-o",

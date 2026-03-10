@@ -1,4 +1,4 @@
-"""CSV writers for Anytone AT-D878UV CPS import files."""
+"""CSV writers for Anytone CPS import files."""
 
 from __future__ import annotations
 
@@ -34,11 +34,12 @@ def _channel_row(number: int, ch: AnytoneChannel) -> dict[str, str]:
     row["Band Width"] = ch.bandwidth
     row["CTCSS/DCS Encode"] = ch.ctcss_encode
     row["CTCSS/DCS Decode"] = ch.ctcss_decode
-    row["Color Code"] = str(ch.color_code)
+    row["RX Color Code"] = str(ch.color_code)
+    row["TxCc"] = str(ch.color_code)
     row["Slot"] = str(ch.slot)
     row["Contact"] = ch.contact
     row["Contact Call Type"] = ch.contact_call_type
-    row["TX Prohibit"] = ch.tx_prohibit
+    row["PTT Prohibit"] = ch.tx_prohibit
 
     return row
 

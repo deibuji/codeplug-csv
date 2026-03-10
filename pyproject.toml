@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "codeplug-csv"
 version = "0.1.0"
-description = "RSGB repeater data to Anytone AT-D878UV CSV converter"
+description = "RSGB repeater data to Anytone CSV converter"
 requires-python = ">=3.10"
 dependencies = [
     "requests>=2.28",
