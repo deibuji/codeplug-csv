@@ -96,8 +96,8 @@ class TestVhfFmSimplex:
 
     def test_calling_channel_name(self):
         zone = vhf_fm_simplex_zone()
-        # V40 is index 40-16=24
-        assert zone.channels[24].name == "V40 CALL"
+        # V40 (145.500 MHz) is index 40-16=24
+        assert zone.channels[24].name == "V40 145.5 CALL"
 
     def test_simplex(self):
         zone = vhf_fm_simplex_zone()
@@ -134,8 +134,8 @@ class TestUhfFmSimplex:
 
     def test_calling_channel_name(self):
         zone = uhf_fm_simplex_zone()
-        # U280 is index 280-272=8
-        assert zone.channels[8].name == "U280 CALL"
+        # U280 (433.500 MHz) is index 280-272=8
+        assert zone.channels[8].name == "U280 433.5 CALL"
 
     def test_simplex(self):
         zone = uhf_fm_simplex_zone()
