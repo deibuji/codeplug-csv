@@ -10,6 +10,11 @@ def _mhz_str(freq: float) -> str:
     return f"{freq:.5f}"
 
 
+def _name_freq(freq: float) -> str:
+    """Format a frequency for use in a channel name (compact, no trailing zeros)."""
+    return f"{freq:.4f}".rstrip("0").rstrip(".")
+
+
 # ---------- Hotspot ----------
 
 
@@ -69,7 +74,7 @@ def vhf_fm_simplex_zone() -> AnytoneZone:
     for i in range(16, 47):
         freq = 145.200 + (i - 16) * 0.0125
         freq_str = _mhz_str(freq)
-        name = f"V{i} CALL" if i == 40 else f"V{i}"
+        name = f"V{i} {_name_freq(freq)} CALL" if i == 40 else f"V{i} {_name_freq(freq)}"
         channels.append(
             AnytoneChannel(
                 name=name,
@@ -91,7 +96,7 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
     for i in range(272, 289):
         freq = 433.400 + (i - 272) * 0.0125
         freq_str = _mhz_str(freq)
-        name = f"U{i} CALL" if i == 280 else f"U{i}"
+        name = f"U{i} {_name_freq(freq)} CALL" if i == 280 else f"U{i} {_name_freq(freq)}"
         channels.append(
             AnytoneChannel(
                 name=name,
