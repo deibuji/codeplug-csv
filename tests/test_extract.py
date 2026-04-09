@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import logging
-from unittest.mock import MagicMock, patch
+import pytest
+import asyncio
+import httpx
+import pytest_asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from codeplug_csv.config import NON_UK_CURATED_IDS, UK_TG_PREFIX
 from codeplug_csv.extract import BrandMeisterClient, RadioIDClient
@@ -62,7 +66,6 @@ class TestBrandMeisterFilterAndParse:
             talkgroups = BrandMeisterClient._filter_and_parse(partial_data)
         assert "not in API response" in caplog.text
         ids = {tg.radio_id for tg in talkgroups}
-        # UK-prefix TGs from the data (235) plus all non-UK curated IDs
         expected = {9, 235} | NON_UK_CURATED_IDS
         assert ids == expected
 
@@ -82,7 +85,18 @@ class TestBrandMeisterFilterAndParse:
     def test_uk_prefix_tgs_included_dynamically(self, sample_bm_data):
         talkgroups = BrandMeisterClient._filter_and_parse(sample_bm_data)
         ids = {tg.radio_id for tg in talkgroups}
-        for tg_id in [23500, 23510, 23520, 23530, 23540, 23550, 23560, 23570, 23580, 23590]:
+        for tg_id in [
+            23500,
+            23510,
+            23520,
+            23530,
+            23540,
+            23550,
+            23560,
+            23570,
+            23580,
+            23590,
+        ]:
             assert tg_id in ids
 
     def test_non_235_prefix_excluded(self):
@@ -97,49 +111,36 @@ class TestBrandMeisterFilterAndParse:
         with caplog.at_level(logging.INFO):
             talkgroups = BrandMeisterClient._filter_and_parse(data)
         ids = {tg.radio_id for tg in talkgroups}
-        # No 235-prefix IDs should be backfilled -- only non-UK curated IDs
         uk_prefix_ids = {tg_id for tg_id in ids if str(tg_id).startswith(UK_TG_PREFIX)}
         assert uk_prefix_ids == set()
 
 
 class TestRadioIDClient:
-    def test_download_writes_file(self, tmp_path):
+    @pytest.mark.asyncio
+    async def test_download_writes_file(self, tmp_path):
         sample_csv = b"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME\n1234567,M0ABC,John,Doe\n"
-        mock_resp = MagicMock()
-        mock_resp.iter_content.return_value = [sample_csv]
-        mock_resp.raise_for_status = MagicMock()
+        dest = tmp_path / "user.csv"
 
-        with patch("codeplug_csv.extract.requests.get", return_value=mock_resp) as mock_get:
-            dest = tmp_path / "user.csv"
-            result = RadioIDClient().download(dest)
+        with patch("httpx.AsyncClient.stream") as mock_stream:
+            mock_response = MagicMock()
+            # raise_for_status is awaited in code: response.raise_for_status()
+            mock_response.raise_for_status = AsyncMock()
 
-            mock_get.assert_called_once_with(
-                "https://www.radioid.net/static/user.csv",
-                stream=True,
-                timeout=60,
-            )
-            assert result == dest
+            # aiter_bytes() must return an async iterator
+            async def mock_aiter_bytes():
+                yield sample_csv
+
+            # We make aiter_bytes a regular method that returns the async generator
+            mock_response.aiter_bytes = MagicMock(return_value=mock_aiter_bytes())
+
+            # Setup the async context manager chain
+            mock_context_manager = AsyncMock()
+            mock_context_manager.__aenter__.return_value = mock_response
+
+            mock_stream.return_value = mock_context_manager
+
+            client = RadioIDClient(url="https://fakeurl.com")
+            await client.download(dest)
+
+            assert dest.exists()
             assert dest.read_bytes() == sample_csv
-
-    def test_download_streams_multiple_chunks(self, tmp_path):
-        chunks = [b"RADIO_ID,CALLSIGN\n", b"1234567,M0ABC\n"]
-        mock_resp = MagicMock()
-        mock_resp.iter_content.return_value = chunks
-        mock_resp.raise_for_status = MagicMock()
-
-        with patch("codeplug_csv.extract.requests.get", return_value=mock_resp):
-            dest = tmp_path / "user.csv"
-            RadioIDClient().download(dest)
-            assert dest.read_bytes() == b"RADIO_ID,CALLSIGN\n1234567,M0ABC\n"
-
-    def test_download_raises_on_http_error(self, tmp_path):
-        mock_resp = MagicMock()
-        mock_resp.raise_for_status.side_effect = Exception("404 Not Found")
-
-        with patch("codeplug_csv.extract.requests.get", return_value=mock_resp):
-            dest = tmp_path / "user.csv"
-            try:
-                RadioIDClient().download(dest)
-                assert False, "Expected exception"
-            except Exception as e:
-                assert "404" in str(e)

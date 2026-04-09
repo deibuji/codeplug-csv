@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+import asyncio
 from pathlib import Path
 
+import httpx
 import requests
 
 from .config import (
@@ -25,26 +27,40 @@ logger = logging.getLogger(__name__)
 class RSGBClient:
     """Client for the RSGB ETCC beta API."""
 
-    def __init__(self, base_url: str = API_BASE_URL, timeout: int = 30):
+    def __init__(
+        self, base_url: str = API_BASE_URL, timeout: int = 30, max_concurrent: int = 5
+    ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self._client: httpx.AsyncClient | None = None
 
-    def fetch_band(self, band: str) -> list[Repeater]:
+    async def __aenter__(self) -> RSGBClient:
+        self._client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._client:
+            await self._client.aclose()
+
+    async def fetch_band(self, band: str) -> list[Repeater]:
         """Fetch all repeaters for a given band (e.g. '2m', '70cm')."""
         url = f"{self.base_url}/band/{band}"
-        logger.info("Fetching %s", url)
-        resp = requests.get(url, timeout=self.timeout)
-        resp.raise_for_status()
-        data = resp.json().get("data", [])
-        logger.info("Got %d repeaters for %s", len(data), band)
-        return [self._parse(item) for item in data]
+        async with self.semaphore:
+            if not self._client:
+                raise RuntimeError("Client must be used as an async context manager")
+            logger.info("Fetching %s", url)
+            resp = await self._client.get(url)
+            resp.raise_for_status()
+            data = resp.json().get("data", [])
+            logger.info("Got %d repeaters for %s", len(data), band)
+            return [self._parse(item) for item in data]
 
-    def fetch_bands(self, bands: list[str]) -> list[Repeater]:
+    async def fetch_bands(self, bands: list[str]) -> list[Repeater]:
         """Fetch repeaters for multiple bands."""
-        repeaters: list[Repeater] = []
-        for band in bands:
-            repeaters.extend(self.fetch_band(band))
-        return repeaters
+        tasks = [self.fetch_band(band) for band in bands]
+        results = await asyncio.gather(*tasks)
+        return [repeater for band_results in results for repeater in band_results]
 
     @staticmethod
     def _parse(item: dict) -> Repeater:
@@ -78,6 +94,16 @@ class BrandMeisterClient:
         resp.raise_for_status()
         data = resp.json()
         return self._filter_and_parse(data)
+
+    async def fetch_talkgroups_async(self) -> list[TalkGroup]:
+        """Fetch curated UK-relevant talkgroups asynchronously."""
+        url = f"{self.base_url}/talkgroup/"
+        logger.info("Fetching %s", url)
+        async with self._client or httpx.AsyncClient(timeout=self.timeout) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+            return self._filter_and_parse(data)
 
     @staticmethod
     def _filter_and_parse(data: dict) -> list[TalkGroup]:
@@ -129,9 +155,7 @@ class BrandMeisterClient:
                     call_alert="None",
                 )
             )
-            logger.info(
-                "Talkgroup %d not in API response, added as %r", tg_id, tg_name
-            )
+            logger.info("Talkgroup %d not in API response, added as %r", tg_id, tg_name)
 
         talkgroups.sort(key=lambda tg: tg.radio_id)
         return talkgroups
@@ -143,14 +167,16 @@ class RadioIDClient:
     def __init__(self, url: str = RADIOID_CSV_URL, timeout: int = 60):
         self.url = url
         self.timeout = timeout
+        self._client: httpx.AsyncClient | None = None
 
-    def download(self, dest: Path) -> Path:
+    async def download(self, dest: Path) -> Path:
         """Stream the RadioID user CSV to *dest* and return the path written."""
         logger.info("Downloading RadioID database from %s", self.url)
-        resp = requests.get(self.url, stream=True, timeout=self.timeout)
-        resp.raise_for_status()
-        with open(dest, "wb") as fh:
-            for chunk in resp.iter_content(chunk_size=8192):
-                fh.write(chunk)
+        async with self._client or httpx.AsyncClient(timeout=self.timeout) as client:
+            async with client.stream("GET", self.url) as response:
+                response.raise_for_status()
+                with open(dest, "wb") as fh:
+                    async for chunk in response.aiter_bytes():
+                        fh.write(chunk)
         logger.info("Wrote RadioID database to %s", dest)
         return dest
