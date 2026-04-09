@@ -12,14 +12,17 @@ import requests
 from .config import (
     API_BASE_URL,
     BRANDMEISTER_API_URL,
+    HTTP_TIMEOUT,
+    MAX_CONCURRENT,
     MAX_NAME_LENGTH,
     NON_UK_CURATED_IDS,
     PRIVATE_CALL_IDS,
     RADIOID_CSV_URL,
+    RADIOID_TIMEOUT,
     TALKGROUP_NAME_OVERRIDES,
     UK_TG_PREFIX,
 )
-from .models import Repeater, TalkGroup
+from .models import Repeater, TalkGroup, RepeaterModel, TalkGroupModel
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +31,7 @@ class RSGBClient:
     """Client for the RSGB ETCC beta API."""
 
     def __init__(
-        self, base_url: str = API_BASE_URL, timeout: int = 30, max_concurrent: int = 5
+        self, base_url: str = API_BASE_URL, timeout: int = HTTP_TIMEOUT, max_concurrent: int = MAX_CONCURRENT
     ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
@@ -49,7 +52,7 @@ class RSGBClient:
         async with self.semaphore:
             if not self._client:
                 raise RuntimeError("Client must be used as an async context manager")
-            logger.info("Fetching %s", url)
+            logger.debug("Fetching %s", url)
             resp = await self._client.get(url)
             resp.raise_for_status()
             data = resp.json().get("data", [])
@@ -64,46 +67,40 @@ class RSGBClient:
 
     @staticmethod
     def _parse(item: dict) -> Repeater:
-        return Repeater(
-            repeater=item.get("repeater", ""),
-            tx=item.get("tx", 0),
-            rx=item.get("rx", 0),
-            band=item.get("band", ""),
-            mode_codes=item.get("modeCodes") or [],
-            ctcss=item.get("ctcss") or 0.0,
-            txbw=item.get("txbw") or 12.5,
-            town=item.get("town") or "",
-            status=item.get("status") or "",
-            type=item.get("type") or "",
-            locator=item.get("locator") or "",
-        )
+        cleaned = {k: v for k, v in item.items() if v is not None}
+        validated = RepeaterModel.model_validate(cleaned)
+        return Repeater(**validated.model_dump())
 
 
 class BrandMeisterClient:
     """Client for the BrandMeister talkgroup API."""
 
-    def __init__(self, base_url: str = BRANDMEISTER_API_URL, timeout: int = 30):
+    def __init__(self, base_url: str = BRANDMEISTER_API_URL, timeout: int = HTTP_TIMEOUT):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
     def fetch_talkgroups(self) -> list[TalkGroup]:
         """Fetch curated UK-relevant talkgroups from the BrandMeister API."""
         url = f"{self.base_url}/talkgroup/"
-        logger.info("Fetching %s", url)
+        logger.debug("Fetching %s", url)
         resp = requests.get(url, timeout=self.timeout)
         resp.raise_for_status()
         data = resp.json()
-        return self._filter_and_parse(data)
+        talkgroups = self._filter_and_parse(data)
+        logger.info("Fetched %d talkgroups from BrandMeister", len(talkgroups))
+        return talkgroups
 
     async def fetch_talkgroups_async(self) -> list[TalkGroup]:
         """Fetch curated UK-relevant talkgroups asynchronously."""
         url = f"{self.base_url}/talkgroup/"
-        logger.info("Fetching %s", url)
-        async with self._client or httpx.AsyncClient(timeout=self.timeout) as client:
+        logger.debug("Fetching %s", url)
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             data = resp.json()
-            return self._filter_and_parse(data)
+            talkgroups = self._filter_and_parse(data)
+            logger.info("Fetched %d talkgroups from BrandMeister", len(talkgroups))
+            return talkgroups
 
     @staticmethod
     def _filter_and_parse(data: dict) -> list[TalkGroup]:
@@ -133,28 +130,49 @@ class BrandMeisterClient:
 
             call_type = "Private Call" if tg_id in PRIVATE_CALL_IDS else "Group Call"
 
-            talkgroups.append(
-                TalkGroup(
+            try:
+                validated = TalkGroupModel(
                     name=tg_name,
                     radio_id=tg_id,
                     call_type=call_type,
                     call_alert="None",
                 )
-            )
+                talkgroups.append(
+                    TalkGroup(
+                        name=validated.name,
+                        radio_id=validated.radio_id,
+                        call_type=validated.call_type,
+                        call_alert=validated.call_alert,
+                    )
+                )
+            except Exception as e:
+                logger.error("Failed to validate talkgroup %d: %s", tg_id, e)
+                continue
 
         missing = NON_UK_CURATED_IDS - found_ids
         for tg_id in sorted(missing):
             tg_name = TALKGROUP_NAME_OVERRIDES.get(tg_id, str(tg_id))
             tg_name = tg_name[:MAX_NAME_LENGTH]
             call_type = "Private Call" if tg_id in PRIVATE_CALL_IDS else "Group Call"
-            talkgroups.append(
-                TalkGroup(
+
+            try:
+                validated = TalkGroupModel(
                     name=tg_name,
                     radio_id=tg_id,
                     call_type=call_type,
                     call_alert="None",
                 )
-            )
+                talkgroups.append(
+                    TalkGroup(
+                        name=validated.name,
+                        radio_id=validated.radio_id,
+                        call_type=validated.call_type,
+                        call_alert=validated.call_alert,
+                    )
+                )
+            except Exception as e:
+                logger.error("Failed to validate missing talkgroup %d: %s", tg_id, e)
+                continue
             logger.info("Talkgroup %d not in API response, added as %r", tg_id, tg_name)
 
         talkgroups.sort(key=lambda tg: tg.radio_id)
@@ -164,15 +182,14 @@ class BrandMeisterClient:
 class RadioIDClient:
     """Client for downloading the RadioID DMR user database."""
 
-    def __init__(self, url: str = RADIOID_CSV_URL, timeout: int = 60):
+    def __init__(self, url: str = RADIOID_CSV_URL, timeout: int = RADIOID_TIMEOUT):
         self.url = url
         self.timeout = timeout
-        self._client: httpx.AsyncClient | None = None
 
     async def download(self, dest: Path) -> Path:
         """Stream the RadioID user CSV to *dest* and return the path written."""
         logger.info("Downloading RadioID database from %s", self.url)
-        async with self._client or httpx.AsyncClient(timeout=self.timeout) as client:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             async with client.stream("GET", self.url) as response:
                 response.raise_for_status()
                 with open(dest, "wb") as fh:

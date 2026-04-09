@@ -1,6 +1,19 @@
 """Constants and defaults for Anytone CPS import files."""
 
-API_BASE_URL = "https://api-beta.rsgb.online"
+import os
+
+
+def _env_int(key: str, default: int) -> int:
+    raw = os.environ.get(key)
+    if not raw:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+API_BASE_URL = os.environ.get("CODEPLUG_CSV_API_BASE_URL", "https://api-beta.rsgb.online")
 BANDS = ("2m", "70cm")
 
 # Repeater types to exclude (beacons, TV, packet beacons, digi beacons)
@@ -172,9 +185,15 @@ TALKGROUP_COLUMNS = [
     "Call Alert",
 ]
 
+# ---------- HTTP client defaults ----------
+
+HTTP_TIMEOUT = _env_int("CODEPLUG_CSV_HTTP_TIMEOUT", 30)
+RADIOID_TIMEOUT = _env_int("CODEPLUG_CSV_RADIOID_TIMEOUT", 60)
+MAX_CONCURRENT = _env_int("CODEPLUG_CSV_MAX_CONCURRENT", 5)
+
 # ---------- BrandMeister API ----------
 
-BRANDMEISTER_API_URL = "https://api.brandmeister.network/v2"
+BRANDMEISTER_API_URL = os.environ.get("CODEPLUG_CSV_BRANDMEISTER_URL", "https://api.brandmeister.network/v2")
 
 UK_TG_PREFIX = "235"
 
@@ -188,7 +207,7 @@ PRIVATE_CALL_IDS: set[int] = {4000, 9990, 234997}
 
 # ---------- RadioID ----------
 
-RADIOID_CSV_URL = "https://www.radioid.net/static/user.csv"
+RADIOID_CSV_URL = os.environ.get("CODEPLUG_CSV_RADIOID_URL", "https://www.radioid.net/static/user.csv")
 
 TALKGROUP_NAME_OVERRIDES: dict[int, str] = {
     9: "Local",  # Must match channel contact field

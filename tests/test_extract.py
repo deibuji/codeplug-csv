@@ -121,26 +121,26 @@ class TestRadioIDClient:
         sample_csv = b"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME\n1234567,M0ABC,John,Doe\n"
         dest = tmp_path / "user.csv"
 
-        with patch("httpx.AsyncClient.stream") as mock_stream:
-            mock_response = MagicMock()
-            # raise_for_status is awaited in code: response.raise_for_status()
-            mock_response.raise_for_status = AsyncMock()
+        mock_response = MagicMock()
+        mock_response.raise_for_status = AsyncMock()
 
-            # aiter_bytes() must return an async iterator
-            async def mock_aiter_bytes():
-                yield sample_csv
+        async def mock_aiter_bytes():
+            yield sample_csv
 
-            # We make aiter_bytes a regular method that returns the async generator
-            mock_response.aiter_bytes = MagicMock(return_value=mock_aiter_bytes())
+        mock_response.aiter_bytes = MagicMock(return_value=mock_aiter_bytes())
 
-            # Setup the async context manager chain
-            mock_context_manager = AsyncMock()
-            mock_context_manager.__aenter__.return_value = mock_response
+        mock_stream_cm = AsyncMock()
+        mock_stream_cm.__aenter__.return_value = mock_response
 
-            mock_stream.return_value = mock_context_manager
+        mock_client = MagicMock()
+        mock_client.stream.return_value = mock_stream_cm
 
+        mock_client_cm = AsyncMock()
+        mock_client_cm.__aenter__.return_value = mock_client
+
+        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client_cm):
             client = RadioIDClient(url="https://fakeurl.com")
             await client.download(dest)
 
-            assert dest.exists()
-            assert dest.read_bytes() == sample_csv
+        assert dest.exists()
+        assert dest.read_bytes() == sample_csv

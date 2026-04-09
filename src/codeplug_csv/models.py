@@ -3,6 +3,34 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pydantic import BaseModel, Field, ConfigDict
+
+
+class RepeaterModel(BaseModel):
+    """Pydantic model for raw repeater record validation from the RSGB API."""
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    repeater: str = Field(default="")
+    tx: int = Field(default=0)
+    rx: int = Field(default=0)
+    band: str = Field(default="")
+    mode_codes: list[str] = Field(default_factory=list, alias="modeCodes")
+    ctcss: float = Field(default=0.0)
+    txbw: float = Field(default=12.5)
+    town: str = Field(default="")
+    status: str = Field(default="")
+    type: str = Field(default="")
+    locator: str = Field(default="")
+
+
+class TalkGroupModel(BaseModel):
+    """Pydantic model for DMR talkgroup validation."""
+
+    name: str
+    radio_id: int
+    call_type: str = "Group Call"
+    call_alert: str = "None"
 
 
 @dataclass

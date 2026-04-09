@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import sys
 from pathlib import Path
@@ -15,6 +16,20 @@ from .transform import filter_repeaters, transform_repeaters
 from .zones import assign_zones
 
 logger = logging.getLogger("codeplug_csv")
+
+
+def _configure_logging(verbose: bool, quiet: bool) -> None:
+    if verbose:
+        level = logging.DEBUG
+    elif quiet:
+        level = logging.WARNING
+    else:
+        level = logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -55,42 +70,42 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip downloading the RadioID digital contact list",
     )
-    parser.add_argument(
+    verbosity = parser.add_mutually_exclusive_group()
+    verbosity.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Enable verbose logging",
+        help="Enable verbose (DEBUG) logging",
+    )
+    verbosity.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress all output except warnings and errors",
     )
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> None:
-    args = parse_args(argv)
-
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
-        format="%(levelname)s: %(message)s",
-    )
-
+async def _run(args: argparse.Namespace) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    client = RSGBClient()
     try:
-        repeaters = client.fetch_bands(args.bands)
-    except Exception as e:
-        logger.error("Failed to fetch repeater data: %s", e)
+        async with RSGBClient() as client:
+            repeaters = await client.fetch_bands(args.bands)
+    except Exception:
+        logger.exception("Failed to fetch repeater data")
         sys.exit(1)
 
     bm_client = BrandMeisterClient()
     try:
         talkgroups = bm_client.fetch_talkgroups()
-    except Exception as e:
-        logger.error("Failed to fetch talkgroup data: %s", e)
+    except Exception:
+        logger.exception("Failed to fetch talkgroup data")
         sys.exit(1)
 
     filtered = filter_repeaters(repeaters, locator_prefix=args.locator)
     if not filtered:
-        logger.warning("No repeaters matched the filters")
+        logger.warning("No repeaters matched filters (bands=%s, locator=%s)", args.bands, args.locator)
         print("No repeaters matched the filters.")
         sys.exit(0)
 
@@ -108,10 +123,17 @@ def main(argv: list[str] | None = None) -> None:
 
     if not args.no_contacts:
         try:
-            RadioIDClient().download(args.output_dir / "user.csv")
-        except Exception as e:
-            logger.warning("Failed to download RadioID contacts: %s", e)
+            await RadioIDClient().download(args.output_dir / "user.csv")
+        except Exception:
+            logger.warning("Failed to download RadioID contacts", exc_info=True)
             print("Warning: RadioID contact list download failed (continuing without it)")
 
     print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")
+    logger.info("Generated %d channels in %d zones (output=%s)", len(all_channels), len(all_zones), args.output_dir.resolve())
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    _configure_logging(args.verbose, args.quiet)
+    asyncio.run(_run(args))
