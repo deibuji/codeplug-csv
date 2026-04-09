@@ -132,17 +132,14 @@ class TestRadioIDClient:
         mock_stream_cm = AsyncMock()
         mock_stream_cm.__aenter__.return_value = mock_response
 
-        mock_client = MagicMock()
-        mock_client.stream.return_value = mock_stream_cm
-
         mock_client_cm = AsyncMock()
-        mock_client_cm.__aenter__.return_value = mock_client
+        mock_client_cm.stream = MagicMock(return_value=mock_stream_cm)
 
         with patch(
             "codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client_cm
         ):
-            client = RadioIDClient(url="https://fakeurl.com")
-            await client.download(dest)
+            async with RadioIDClient(url="https://fakeurl.com") as client:
+                await client.download(dest)
 
         assert dest.exists()
         assert dest.read_bytes() == sample_csv

@@ -7,7 +7,6 @@ import asyncio
 from pathlib import Path
 
 import httpx
-import requests
 
 from .config import (
     API_BASE_URL,
@@ -31,14 +30,18 @@ class RSGBClient:
     """Client for the RSGB ETCC beta API."""
 
     def __init__(
-        self, base_url: str = API_BASE_URL, timeout: int = HTTP_TIMEOUT, max_concurrent: int = MAX_CONCURRENT
+        self,
+        base_url: str = API_BASE_URL,
+        timeout: int = HTTP_TIMEOUT,
+        max_concurrent: int = MAX_CONCURRENT,
     ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
-        self.semaphore = asyncio.Semaphore(max_concurrent)
+        self.max_concurrent = max_concurrent
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> RSGBClient:
+        self.semaphore = asyncio.Semaphore(self.max_concurrent)
         self._client = httpx.AsyncClient(timeout=self.timeout)
         return self
 
@@ -75,15 +78,28 @@ class RSGBClient:
 class BrandMeisterClient:
     """Client for the BrandMeister talkgroup API."""
 
-    def __init__(self, base_url: str = BRANDMEISTER_API_URL, timeout: int = HTTP_TIMEOUT):
+    def __init__(
+        self, base_url: str = BRANDMEISTER_API_URL, timeout: int = HTTP_TIMEOUT
+    ):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self._client: httpx.AsyncClient | None = None
 
-    def fetch_talkgroups(self) -> list[TalkGroup]:
+    async def __aenter__(self) -> BrandMeisterClient:
+        self._client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._client:
+            await self._client.aclose()
+
+    async def fetch_talkgroups(self) -> list[TalkGroup]:
         """Fetch curated UK-relevant talkgroups from the BrandMeister API."""
+        if not self._client:
+            raise RuntimeError("Client must be used as an async context manager")
         url = f"{self.base_url}/talkgroup/"
         logger.debug("Fetching %s", url)
-        resp = requests.get(url, timeout=self.timeout)
+        resp = await self._client.get(url)
         resp.raise_for_status()
         data = resp.json()
         talkgroups = self._filter_and_parse(data)
@@ -185,15 +201,25 @@ class RadioIDClient:
     def __init__(self, url: str = RADIOID_CSV_URL, timeout: int = RADIOID_TIMEOUT):
         self.url = url
         self.timeout = timeout
+        self._client: httpx.AsyncClient | None = None
+
+    async def __aenter__(self) -> RadioIDClient:
+        self._client = httpx.AsyncClient(timeout=self.timeout)
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._client:
+            await self._client.aclose()
 
     async def download(self, dest: Path) -> Path:
         """Stream the RadioID user CSV to *dest* and return the path written."""
+        if not self._client:
+            raise RuntimeError("Client must be used as an async context manager")
         logger.info("Downloading RadioID database from %s", self.url)
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            async with client.stream("GET", self.url) as response:
-                response.raise_for_status()
-                with open(dest, "wb") as fh:
-                    async for chunk in response.aiter_bytes():
-                        fh.write(chunk)
+        async with self._client.stream("GET", self.url) as response:
+            response.raise_for_status()
+            with open(dest, "wb") as fh:
+                async for chunk in response.aiter_bytes():
+                    fh.write(chunk)
         logger.info("Wrote RadioID database to %s", dest)
         return dest

@@ -96,16 +96,20 @@ async def _run(args: argparse.Namespace) -> None:
         logger.exception("Failed to fetch repeater data")
         sys.exit(1)
 
-    bm_client = BrandMeisterClient()
     try:
-        talkgroups = bm_client.fetch_talkgroups()
+        async with BrandMeisterClient() as client:
+            talkgroups = await client.fetch_talkgroups()
     except Exception:
         logger.exception("Failed to fetch talkgroup data")
         sys.exit(1)
 
     filtered = filter_repeaters(repeaters, locator_prefix=args.locator)
     if not filtered:
-        logger.warning("No repeaters matched filters (bands=%s, locator=%s)", args.bands, args.locator)
+        logger.warning(
+            "No repeaters matched filters (bands=%s, locator=%s)",
+            args.bands,
+            args.locator,
+        )
         print("No repeaters matched the filters.")
         sys.exit(0)
 
@@ -123,14 +127,22 @@ async def _run(args: argparse.Namespace) -> None:
 
     if not args.no_contacts:
         try:
-            await RadioIDClient().download(args.output_dir / "user.csv")
+            async with RadioIDClient() as radioid:
+                await radioid.download(args.output_dir / "user.csv")
         except Exception:
             logger.warning("Failed to download RadioID contacts", exc_info=True)
-            print("Warning: RadioID contact list download failed (continuing without it)")
+            print(
+                "Warning: RadioID contact list download failed (continuing without it)"
+            )
 
     print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")
-    logger.info("Generated %d channels in %d zones (output=%s)", len(all_channels), len(all_zones), args.output_dir.resolve())
+    logger.info(
+        "Generated %d channels in %d zones (output=%s)",
+        len(all_channels),
+        len(all_zones),
+        args.output_dir.resolve(),
+    )
 
 
 def main(argv: list[str] | None = None) -> None:

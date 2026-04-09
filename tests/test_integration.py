@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import json
 from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -23,15 +22,20 @@ SAMPLE_USER_CSV = b"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME\n2340001,M0TST,Test,U
 
 
 def _make_httpx_mock(
-    per_band: dict[str, list[dict]], user_csv: bytes = SAMPLE_USER_CSV
+    per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes = SAMPLE_USER_CSV
 ):
-    """Return a mock that satisfies two httpx.AsyncClient usage patterns:
-    1. RSGBClient: client = httpx.AsyncClient(...); await client.get(url)
-    2. RadioIDClient: async with httpx.AsyncClient(...) as client: client.stream(...)
+    """Return a mock that satisfies httpx.AsyncClient for all three clients:
+    1. RSGBClient: async with ... as client: await client.get(url)
+    2. BrandMeisterClient: async with ... as client: await client.get(url)
+    3. RadioIDClient: async with ... as client: client.stream(...)
     """
 
-    # --- RSGBClient: plain .get() calls ---
     async def _get(url: str, **_kwargs):
+        if "/talkgroup/" in url:
+            resp = MagicMock()
+            resp.raise_for_status = MagicMock()
+            resp.json = MagicMock(return_value=bm_data)
+            return resp
         for band, items in per_band.items():
             if f"/band/{band}" in url:
                 resp = MagicMock()
@@ -55,10 +59,6 @@ def _make_httpx_mock(
     mock_stream_cm = AsyncMock()
     mock_stream_cm.__aenter__.return_value = mock_dl_response
 
-    # Single mock_client handles both patterns:
-    # - RSGBClient stores it as self._client and calls .get() / .aclose()
-    # - RadioIDClient uses `async with httpx.AsyncClient(...) as client` so
-    #   mock_client.__aenter__ must return mock_client itself
     mock_client = AsyncMock()
     mock_client.get = _get
     mock_client.aclose = AsyncMock()
@@ -68,23 +68,12 @@ def _make_httpx_mock(
     return mock_client
 
 
-def _make_requests_mock(bm_data: dict):
-    resp = MagicMock()
-    resp.raise_for_status = MagicMock()
-    resp.json.return_value = bm_data
-    return resp
-
-
 @contextmanager
 def mocked_http(
     per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes = SAMPLE_USER_CSV
 ):
-    httpx_mock = _make_httpx_mock(per_band, user_csv)
-    requests_mock = _make_requests_mock(bm_data)
-    with (
-        patch("codeplug_csv.extract.httpx.AsyncClient", return_value=httpx_mock),
-        patch("codeplug_csv.extract.requests.get", return_value=requests_mock),
-    ):
+    httpx_mock = _make_httpx_mock(per_band, bm_data, user_csv)
+    with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=httpx_mock):
         yield
 
 
@@ -238,13 +227,7 @@ class TestEndToEnd:
         failing_cm = AsyncMock()
         failing_cm.get = AsyncMock(side_effect=_httpx.ConnectError("network down"))
 
-        with (
-            patch("codeplug_csv.extract.httpx.AsyncClient", return_value=failing_cm),
-            patch(
-                "codeplug_csv.extract.requests.get",
-                return_value=_make_requests_mock(sample_bm_data),
-            ),
-        ):
+        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=failing_cm):
             with pytest.raises(SystemExit) as exc_info:
                 main(["-o", str(tmp_path), "-q"])
         assert exc_info.value.code == 1
