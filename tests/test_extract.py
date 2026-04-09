@@ -122,7 +122,7 @@ class TestRadioIDClient:
         dest = tmp_path / "user.csv"
 
         mock_response = MagicMock()
-        mock_response.raise_for_status = AsyncMock()
+        mock_response.raise_for_status = MagicMock()
 
         async def mock_aiter_bytes():
             yield sample_csv
@@ -138,7 +138,9 @@ class TestRadioIDClient:
         mock_client_cm = AsyncMock()
         mock_client_cm.__aenter__.return_value = mock_client
 
-        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client_cm):
+        with patch(
+            "codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client_cm
+        ):
             client = RadioIDClient(url="https://fakeurl.com")
             await client.download(dest)
 

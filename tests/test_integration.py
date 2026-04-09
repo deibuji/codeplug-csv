@@ -22,7 +22,9 @@ from codeplug_csv.simplex import get_static_zones
 SAMPLE_USER_CSV = b"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME\n2340001,M0TST,Test,User\n"
 
 
-def _make_httpx_mock(per_band: dict[str, list[dict]], user_csv: bytes = SAMPLE_USER_CSV):
+def _make_httpx_mock(
+    per_band: dict[str, list[dict]], user_csv: bytes = SAMPLE_USER_CSV
+):
     """Return a mock that satisfies two httpx.AsyncClient usage patterns:
     1. RSGBClient: client = httpx.AsyncClient(...); await client.get(url)
     2. RadioIDClient: async with httpx.AsyncClient(...) as client: client.stream(...)
@@ -43,7 +45,7 @@ def _make_httpx_mock(per_band: dict[str, list[dict]], user_csv: bytes = SAMPLE_U
 
     # --- RadioIDClient: stream context manager ---
     mock_dl_response = MagicMock()
-    mock_dl_response.raise_for_status = AsyncMock()
+    mock_dl_response.raise_for_status = MagicMock()
 
     async def _aiter_bytes():
         yield user_csv
@@ -74,7 +76,9 @@ def _make_requests_mock(bm_data: dict):
 
 
 @contextmanager
-def mocked_http(per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes = SAMPLE_USER_CSV):
+def mocked_http(
+    per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes = SAMPLE_USER_CSV
+):
     httpx_mock = _make_httpx_mock(per_band, user_csv)
     requests_mock = _make_requests_mock(bm_data)
     with (
@@ -87,6 +91,7 @@ def mocked_http(per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def per_band_api_data(sample_api_data):
@@ -101,6 +106,7 @@ def per_band_api_data(sample_api_data):
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
+
 
 class TestEndToEnd:
     def test_main_generates_all_csvs(self, tmp_path, per_band_api_data, sample_bm_data):
@@ -148,10 +154,15 @@ class TestEndToEnd:
 
         # All frequency fields match MHz format
         import re
+
         freq_pattern = re.compile(r"^\d{3}\.\d{5}$")
         for row in rows:
-            assert freq_pattern.match(row["Receive Frequency"]), row["Receive Frequency"]
-            assert freq_pattern.match(row["Transmit Frequency"]), row["Transmit Frequency"]
+            assert freq_pattern.match(row["Receive Frequency"]), row[
+                "Receive Frequency"
+            ]
+            assert freq_pattern.match(row["Transmit Frequency"]), row[
+                "Transmit Frequency"
+            ]
 
     def test_zone_csv_structure(self, tmp_path, per_band_api_data, sample_bm_data):
         with mocked_http(per_band_api_data, sample_bm_data):
@@ -172,7 +183,9 @@ class TestEndToEnd:
         gb7aa_zones = [r for r in rows if "GB7AA" in r["Zone Channel Member"]]
         assert gb7aa_zones, "No zone contains GB7AA"
 
-    def test_talkgroups_csv_structure(self, tmp_path, per_band_api_data, sample_bm_data):
+    def test_talkgroups_csv_structure(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
         with mocked_http(per_band_api_data, sample_bm_data):
             main(["-o", str(tmp_path), "-q"])
 
@@ -211,7 +224,9 @@ class TestEndToEnd:
         # GB3CD-L is IO94DR — should be excluded
         assert not any("GB3CD" in n for n in channel_names)
 
-    def test_exits_zero_when_no_repeaters_match(self, tmp_path, per_band_api_data, sample_bm_data):
+    def test_exits_zero_when_no_repeaters_match(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
         with mocked_http(per_band_api_data, sample_bm_data):
             with pytest.raises(SystemExit) as exc_info:
                 main(["-o", str(tmp_path), "--locator", "ZZ99", "-q"])
@@ -221,11 +236,14 @@ class TestEndToEnd:
         import httpx as _httpx
 
         failing_cm = AsyncMock()
-        failing_cm.__aenter__.side_effect = _httpx.ConnectError("network down")
+        failing_cm.get = AsyncMock(side_effect=_httpx.ConnectError("network down"))
 
         with (
             patch("codeplug_csv.extract.httpx.AsyncClient", return_value=failing_cm),
-            patch("codeplug_csv.extract.requests.get", return_value=_make_requests_mock(sample_bm_data)),
+            patch(
+                "codeplug_csv.extract.requests.get",
+                return_value=_make_requests_mock(sample_bm_data),
+            ),
         ):
             with pytest.raises(SystemExit) as exc_info:
                 main(["-o", str(tmp_path), "-q"])
