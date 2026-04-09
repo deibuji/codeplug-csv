@@ -121,9 +121,9 @@ async def _run(args: argparse.Namespace) -> None:
     # Derive channel list from zone order so channel numbers align with zones
     all_channels = [ch for zone in all_zones for ch in zone.channels]
 
-    write_channels(all_channels, args.output_dir)
-    write_zones(all_zones, args.output_dir)
-    write_talkgroups(talkgroups, args.output_dir)
+    await write_channels(all_channels, args.output_dir)
+    await write_zones(all_zones, args.output_dir)
+    await write_talkgroups(talkgroups, args.output_dir)
 
     if not args.no_contacts:
         try:

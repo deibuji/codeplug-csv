@@ -106,18 +106,6 @@ class BrandMeisterClient:
         logger.info("Fetched %d talkgroups from BrandMeister", len(talkgroups))
         return talkgroups
 
-    async def fetch_talkgroups_async(self) -> list[TalkGroup]:
-        """Fetch curated UK-relevant talkgroups asynchronously."""
-        url = f"{self.base_url}/talkgroup/"
-        logger.debug("Fetching %s", url)
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
-            talkgroups = self._filter_and_parse(data)
-            logger.info("Fetched %d talkgroups from BrandMeister", len(talkgroups))
-            return talkgroups
-
     @staticmethod
     def _filter_and_parse(data: dict) -> list[TalkGroup]:
         """Filter API response to UK-prefix and curated talkgroup IDs."""

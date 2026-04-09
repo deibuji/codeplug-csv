@@ -115,6 +115,53 @@ class TestBrandMeisterFilterAndParse:
         assert uk_prefix_ids == set()
 
 
+class TestBrandMeisterFetchTalkgroups:
+    @pytest.mark.asyncio
+    async def test_fetch_talkgroups_returns_parsed_talkgroups(self, sample_bm_data):
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json = MagicMock(return_value=sample_bm_data)
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.aclose = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client):
+            async with BrandMeisterClient() as client:
+                talkgroups = await client.fetch_talkgroups()
+
+        assert len(talkgroups) == 34
+        tg9 = next(tg for tg in talkgroups if tg.radio_id == 9)
+        assert tg9.name == "Local"
+
+    @pytest.mark.asyncio
+    async def test_fetch_talkgroups_raises_without_context(self):
+        client = BrandMeisterClient()
+        with pytest.raises(RuntimeError, match="async context manager"):
+            await client.fetch_talkgroups()
+
+    @pytest.mark.asyncio
+    async def test_fetch_talkgroups_propagates_http_error(self):
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(
+            side_effect=httpx.HTTPStatusError(
+                "Bad Request",
+                request=MagicMock(),
+                response=MagicMock(status_code=400),
+            )
+        )
+        mock_client.aclose = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(httpx.HTTPStatusError):
+                async with BrandMeisterClient() as client:
+                    await client.fetch_talkgroups()
+
+
 class TestRadioIDClient:
     @pytest.mark.asyncio
     async def test_download_writes_file(self, tmp_path):
