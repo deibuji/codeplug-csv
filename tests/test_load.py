@@ -50,26 +50,30 @@ def sample_channels() -> list[AnytoneChannel]:
 
 
 class TestWriteChannels:
-    def test_creates_file(self, sample_channels, output_dir):
-        path = write_channels(sample_channels, output_dir)
+    @pytest.mark.asyncio
+    async def test_creates_file(self, sample_channels, output_dir):
+        path = await write_channels(sample_channels, output_dir)
         assert path.exists()
         assert path.name == "Channel.CSV"
 
-    def test_has_all_columns(self, sample_channels, output_dir):
-        write_channels(sample_channels, output_dir)
+    @pytest.mark.asyncio
+    async def test_has_all_columns(self, sample_channels, output_dir):
+        await write_channels(sample_channels, output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             assert reader.fieldnames == CHANNEL_COLUMNS
 
-    def test_correct_row_count(self, sample_channels, output_dir):
-        write_channels(sample_channels, output_dir)
+    @pytest.mark.asyncio
+    async def test_correct_row_count(self, sample_channels, output_dir):
+        await write_channels(sample_channels, output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
         assert len(rows) == 2
 
-    def test_analog_channel_values(self, sample_channels, output_dir):
-        write_channels(sample_channels, output_dir)
+    @pytest.mark.asyncio
+    async def test_analog_channel_values(self, sample_channels, output_dir):
+        await write_channels(sample_channels, output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
@@ -81,8 +85,9 @@ class TestWriteChannels:
         assert analog["CTCSS/DCS Encode"] == "118.8"
         assert analog["Band Width"] == "12.5K"
 
-    def test_digital_channel_values(self, sample_channels, output_dir):
-        write_channels(sample_channels, output_dir)
+    @pytest.mark.asyncio
+    async def test_digital_channel_values(self, sample_channels, output_dir):
+        await write_channels(sample_channels, output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
@@ -93,18 +98,17 @@ class TestWriteChannels:
         assert digital["TxCc"] == "1"
         assert digital["Contact"] == "Local"
 
-    def test_no_missing_columns(self, sample_channels, output_dir):
-        """Every column in CHANNEL_COLUMNS must have a value (not missing key)."""
-        write_channels(sample_channels, output_dir)
+    @pytest.mark.asyncio
+    async def test_no_missing_columns(self, sample_channels, output_dir):
+        await write_channels(sample_channels, output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 for col in CHANNEL_COLUMNS:
                     assert col in row, f"Missing column: {col}"
 
-
-    def test_tx_prohibit_on(self, output_dir):
-        """PTT Prohibit field should be written to CSV."""
+    @pytest.mark.asyncio
+    async def test_tx_prohibit_on(self, output_dir):
         ch = AnytoneChannel(
             name="PMR 1",
             rx_freq="446.00625",
@@ -112,14 +116,14 @@ class TestWriteChannels:
             channel_type="A-Analog",
             tx_prohibit="On",
         )
-        write_channels([ch], output_dir)
+        await write_channels([ch], output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             row = next(reader)
         assert row["PTT Prohibit"] == "On"
 
-    def test_color_code_written_to_both_columns(self, output_dir):
-        """Color code must appear in both RX Color Code and TxCc columns."""
+    @pytest.mark.asyncio
+    async def test_color_code_written_to_both_columns(self, output_dir):
         ch = AnytoneChannel(
             name="GB7BS TS1",
             rx_freq="439.45000",
@@ -130,7 +134,7 @@ class TestWriteChannels:
             contact="Local",
             contact_call_type="Group Call",
         )
-        write_channels([ch], output_dir)
+        await write_channels([ch], output_dir)
         with open(output_dir / "Channel.CSV") as f:
             reader = csv.DictReader(f)
             row = next(reader)
@@ -139,22 +143,25 @@ class TestWriteChannels:
 
 
 class TestWriteZones:
-    def test_creates_file(self, sample_channels, output_dir):
+    @pytest.mark.asyncio
+    async def test_creates_file(self, sample_channels, output_dir):
         zones = [AnytoneZone(name="2m FM", channels=sample_channels[:1])]
-        path = write_zones(zones, output_dir)
+        path = await write_zones(zones, output_dir)
         assert path.exists()
         assert path.name == "Zone.CSV"
 
-    def test_has_correct_columns(self, sample_channels, output_dir):
+    @pytest.mark.asyncio
+    async def test_has_correct_columns(self, sample_channels, output_dir):
         zones = [AnytoneZone(name="2m FM", channels=sample_channels[:1])]
-        write_zones(zones, output_dir)
+        await write_zones(zones, output_dir)
         with open(output_dir / "Zone.CSV") as f:
             reader = csv.DictReader(f)
             assert reader.fieldnames == ZONE_COLUMNS
 
-    def test_pipe_delimited_members(self, sample_channels, output_dir):
+    @pytest.mark.asyncio
+    async def test_pipe_delimited_members(self, sample_channels, output_dir):
         zones = [AnytoneZone(name="test", channels=sample_channels)]
-        write_zones(zones, output_dir)
+        await write_zones(zones, output_dir)
         with open(output_dir / "Zone.CSV") as f:
             reader = csv.DictReader(f)
             row = next(reader)
@@ -172,19 +179,22 @@ def sample_talkgroups():
 
 
 class TestWriteTalkgroups:
-    def test_creates_file(self, sample_talkgroups, output_dir):
-        path = write_talkgroups(sample_talkgroups, output_dir)
+    @pytest.mark.asyncio
+    async def test_creates_file(self, sample_talkgroups, output_dir):
+        path = await write_talkgroups(sample_talkgroups, output_dir)
         assert path.exists()
         assert path.name == "TalkGroups.CSV"
 
-    def test_has_correct_columns(self, sample_talkgroups, output_dir):
-        write_talkgroups(sample_talkgroups, output_dir)
+    @pytest.mark.asyncio
+    async def test_has_correct_columns(self, sample_talkgroups, output_dir):
+        await write_talkgroups(sample_talkgroups, output_dir)
         with open(output_dir / "TalkGroups.CSV") as f:
             reader = csv.DictReader(f)
             assert reader.fieldnames == TALKGROUP_COLUMNS
 
-    def test_talkgroups(self, sample_talkgroups, output_dir):
-        write_talkgroups(sample_talkgroups, output_dir)
+    @pytest.mark.asyncio
+    async def test_talkgroups(self, sample_talkgroups, output_dir):
+        await write_talkgroups(sample_talkgroups, output_dir)
         with open(output_dir / "TalkGroups.CSV") as f:
             reader = csv.DictReader(f)
             rows = list(reader)
