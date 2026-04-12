@@ -86,24 +86,63 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+async def _fetch_repeaters(bands: list[str]) -> list:
+    async with RSGBClient() as client:
+        return await client.fetch_bands(bands)
+
+
+async def _fetch_talkgroups() -> list:
+    async with BrandMeisterClient() as client:
+        return await client.fetch_talkgroups()
+
+
+async def _download_contacts(dest: Path) -> None:
+    async with RadioIDClient() as radioid:
+        await radioid.download(dest)
+
+
 async def _run(args: argparse.Namespace) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        async with RSGBClient() as client:
-            repeaters = await client.fetch_bands(args.bands)
-    except Exception:
+    # Fetch data concurrently
+    tasks = [
+        asyncio.create_task(_fetch_repeaters(args.bands)),
+        asyncio.create_task(_fetch_talkgroups()),
+    ]
+
+    radioid_task = None
+    if not args.no_contacts:
+        radioid_task = asyncio.create_task(
+            _download_contacts(args.output_dir / "user.csv")
+        )
+
+    # Await the mandatory fetches
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Handle RSGB results
+    repeaters = results[0]
+    if isinstance(repeaters, Exception):
         logger.exception("Failed to fetch repeater data")
         sys.exit(1)
 
-    try:
-        async with BrandMeisterClient() as client:
-            talkgroups = await client.fetch_talkgroups()
-    except Exception:
+    # Handle BrandMeister results
+    talkgroups = results[1]
+    if isinstance(talkgroups, Exception):
         logger.exception("Failed to fetch talkgroup data")
         sys.exit(1)
 
+    # Handle RadioID results (optional)
+    if radioid_task:
+        try:
+            await radioid_task
+        except Exception:
+            logger.warning("Failed to download RadioID contacts", exc_info=True)
+            print(
+                "Warning: RadioID contact list download failed (continuing without it)"
+            )
+
     filtered = filter_repeaters(repeaters, locator_prefix=args.locator)
+
     if not filtered:
         logger.warning(
             "No repeaters matched filters (bands=%s, locator=%s)",
@@ -124,16 +163,6 @@ async def _run(args: argparse.Namespace) -> None:
     await write_channels(all_channels, args.output_dir)
     await write_zones(all_zones, args.output_dir)
     await write_talkgroups(talkgroups, args.output_dir)
-
-    if not args.no_contacts:
-        try:
-            async with RadioIDClient() as radioid:
-                await radioid.download(args.output_dir / "user.csv")
-        except Exception:
-            logger.warning("Failed to download RadioID contacts", exc_info=True)
-            print(
-                "Warning: RadioID contact list download failed (continuing without it)"
-            )
 
     print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")

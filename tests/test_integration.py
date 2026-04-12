@@ -30,7 +30,8 @@ def _make_httpx_mock(
     3. RadioIDClient: async with ... as client: client.stream(...)
     """
 
-    async def _get(url: str, **_kwargs):
+    # Use a custom mock for get to handle both sync and async scenarios correctly
+    def _get_mock(url: str, **_kwargs):
         if "/talkgroup/" in url:
             resp = MagicMock()
             resp.raise_for_status = MagicMock()
@@ -47,7 +48,7 @@ def _make_httpx_mock(
         resp.json = MagicMock(return_value={"data": []})
         return resp
 
-    # --- RadioIDClient: stream context manager ---
+    # Fix for the RadioIDClient: stream context manager
     mock_dl_response = MagicMock()
     mock_dl_response.raise_for_status = MagicMock()
 
@@ -58,12 +59,16 @@ def _make_httpx_mock(
 
     mock_stream_cm = AsyncMock()
     mock_stream_cm.__aenter__.return_value = mock_dl_response
+    mock_stream_cm.__aexit__ = AsyncMock(return_value=None)
 
+    # The client should be an AsyncMock but we must ensure its methods
+    # behave as the real httpx.AsyncClient does.
     mock_client = AsyncMock()
-    mock_client.get = _get
+    mock_client.get = AsyncMock(side_effect=_get_mock)
     mock_client.aclose = AsyncMock()
-    mock_client.stream = MagicMock(return_value=mock_stream_cm)  # sync in httpx
+    mock_client.stream = MagicMock(return_value=mock_stream_cm)
     mock_client.__aenter__.return_value = mock_client
+    mock_client.__aexit__ = AsyncMock(return_value=None)
 
     return mock_client
 
@@ -226,6 +231,13 @@ class TestEndToEnd:
 
         failing_cm = AsyncMock()
         failing_cm.get = AsyncMock(side_effect=_httpx.ConnectError("network down"))
+        # Provide a valid stream mock to avoid the background task crashing on stream()
+        mock_stream_cm = AsyncMock()
+        mock_stream_cm.__aenter__.return_value = MagicMock()
+        mock_stream_cm.__aexit__ = AsyncMock(return_value=None)
+        failing_cm.stream = MagicMock(return_value=mock_stream_cm)
+        failing_cm.__aenter__.return_value = failing_cm
+        failing_cm.__aexit__ = AsyncMock(return_value=None)
 
         with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=failing_cm):
             with pytest.raises(SystemExit) as exc_info:

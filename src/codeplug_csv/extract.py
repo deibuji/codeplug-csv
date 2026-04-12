@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import asyncio
+import aiofiles
 from pathlib import Path
 
 import httpx
@@ -206,8 +207,8 @@ class RadioIDClient:
         logger.info("Downloading RadioID database from %s", self.url)
         async with self._client.stream("GET", self.url) as response:
             response.raise_for_status()
-            with open(dest, "wb") as fh:
+            async with aiofiles.open(dest, "wb") as fh:
                 async for chunk in response.aiter_bytes():
-                    fh.write(chunk)
+                    await fh.write(chunk)
         logger.info("Wrote RadioID database to %s", dest)
         return dest
