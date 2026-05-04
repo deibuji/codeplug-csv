@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 import sys
 from pathlib import Path
@@ -15,6 +16,20 @@ from .transform import filter_repeaters, transform_repeaters
 from .zones import assign_zones
 
 logger = logging.getLogger("codeplug_csv")
+
+
+def _configure_logging(verbose: bool, quiet: bool) -> None:
+    if verbose:
+        level = logging.DEBUG
+    elif quiet:
+        level = logging.WARNING
+    else:
+        level = logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -55,42 +70,85 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip downloading the RadioID digital contact list",
     )
-    parser.add_argument(
+    verbosity = parser.add_mutually_exclusive_group()
+    verbosity.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="Enable verbose logging",
+        help="Enable verbose (DEBUG) logging",
+    )
+    verbosity.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress all output except warnings and errors",
     )
     return parser.parse_args(argv)
 
 
-def main(argv: list[str] | None = None) -> None:
-    args = parse_args(argv)
+async def _fetch_repeaters(bands: list[str]) -> list:
+    async with RSGBClient() as client:
+        return await client.fetch_bands(bands)
 
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.WARNING,
-        format="%(levelname)s: %(message)s",
-    )
 
+async def _fetch_talkgroups() -> list:
+    async with BrandMeisterClient() as client:
+        return await client.fetch_talkgroups()
+
+
+async def _download_contacts(dest: Path) -> None:
+    async with RadioIDClient() as radioid:
+        await radioid.download(dest)
+
+
+async def _run(args: argparse.Namespace) -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    client = RSGBClient()
-    try:
-        repeaters = client.fetch_bands(args.bands)
-    except Exception as e:
-        logger.error("Failed to fetch repeater data: %s", e)
+    # Fetch data concurrently
+    tasks = [
+        asyncio.create_task(_fetch_repeaters(args.bands)),
+        asyncio.create_task(_fetch_talkgroups()),
+    ]
+
+    radioid_task = None
+    if not args.no_contacts:
+        radioid_task = asyncio.create_task(
+            _download_contacts(args.output_dir / "user.csv")
+        )
+
+    # Await the mandatory fetches
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Handle RSGB results
+    repeaters = results[0]
+    if isinstance(repeaters, Exception):
+        logger.exception("Failed to fetch repeater data")
         sys.exit(1)
 
-    bm_client = BrandMeisterClient()
-    try:
-        talkgroups = bm_client.fetch_talkgroups()
-    except Exception as e:
-        logger.error("Failed to fetch talkgroup data: %s", e)
+    # Handle BrandMeister results
+    talkgroups = results[1]
+    if isinstance(talkgroups, Exception):
+        logger.exception("Failed to fetch talkgroup data")
         sys.exit(1)
+
+    # Handle RadioID results (optional)
+    if radioid_task:
+        try:
+            await radioid_task
+        except Exception:
+            logger.warning("Failed to download RadioID contacts", exc_info=True)
+            print(
+                "Warning: RadioID contact list download failed (continuing without it)"
+            )
 
     filtered = filter_repeaters(repeaters, locator_prefix=args.locator)
+
     if not filtered:
-        logger.warning("No repeaters matched the filters")
+        logger.warning(
+            "No repeaters matched filters (bands=%s, locator=%s)",
+            args.bands,
+            args.locator,
+        )
         print("No repeaters matched the filters.")
         sys.exit(0)
 
@@ -102,16 +160,21 @@ def main(argv: list[str] | None = None) -> None:
     # Derive channel list from zone order so channel numbers align with zones
     all_channels = [ch for zone in all_zones for ch in zone.channels]
 
-    write_channels(all_channels, args.output_dir)
-    write_zones(all_zones, args.output_dir)
-    write_talkgroups(talkgroups, args.output_dir)
-
-    if not args.no_contacts:
-        try:
-            RadioIDClient().download(args.output_dir / "user.csv")
-        except Exception as e:
-            logger.warning("Failed to download RadioID contacts: %s", e)
-            print("Warning: RadioID contact list download failed (continuing without it)")
+    await write_channels(all_channels, args.output_dir)
+    await write_zones(all_zones, args.output_dir)
+    await write_talkgroups(talkgroups, args.output_dir)
 
     print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")
     print(f"Output: {args.output_dir.resolve()}")
+    logger.info(
+        "Generated %d channels in %d zones (output=%s)",
+        len(all_channels),
+        len(all_zones),
+        args.output_dir.resolve(),
+    )
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    _configure_logging(args.verbose, args.quiet)
+    asyncio.run(_run(args))
