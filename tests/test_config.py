@@ -73,3 +73,18 @@ def test_radioid_timeout_from_env(monkeypatch):
     monkeypatch.setenv("CODEPLUG_CSV_RADIOID_TIMEOUT", "120")
     importlib.reload(config)
     assert config.RADIOID_TIMEOUT == 120
+
+
+def test_fit_name_preserves_suffix():
+    assert config.fit_name("GB3CD-L 2m", " FM") == "GB3CD-L 2m FM"
+
+
+def test_fit_name_truncates_text_not_suffix():
+    name = config.fit_name("GB3ABCDEFGHIJ-L 70cm", " TS1")
+    assert len(name) == config.MAX_NAME_LENGTH
+    assert name.endswith(" TS1")
+
+
+def test_mode_and_gateway_labels_cover_internal_modes():
+    assert set(config.MODE_LABELS) == {"ANL", "DMR"}
+    assert set(config.GATEWAY_LABELS) == {"ANL", "DMR"}

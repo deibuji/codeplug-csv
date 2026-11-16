@@ -7,7 +7,7 @@ Covers 2m and 70cm bands, both analog (FM) and digital (DMR) repeaters.
 ## Output files
 
 - **Channel.CSV** - All channels with the full column set the Anytone CPS expects (analog + digital)
-- **Zone.CSV** - Repeater channels grouped by UK region, band, and mode (e.g. "NE 2m FM", "LONDON 70cm DMR"), plus static simplex/utility zones
+- **Zone.CSV** - Repeater channels grouped by UK region, band, mode, and type (e.g. "NE 2m FM", "LONDON 70cm DMR", "NE 2m AG"), plus static simplex/utility zones
 - **TalkGroups.CSV** - UK-relevant DMR talkgroups fetched from the BrandMeister API
 - **user.csv** - Full worldwide DMR contact list downloaded from [RadioID](https://www.radioid.net/) (importable as a Digital Contact List in the CPS)
 
@@ -62,9 +62,9 @@ python -m codeplug_csv -o output/
 ## How it works
 
 1. **Extract** - Fetches repeater data from `GET /band/2m` and `GET /band/70cm`
-2. **Transform** - Filters to operational analog/DMR repeaters, swaps TX/RX frequencies to the radio's perspective, generates channel names (max 16 chars), extracts DMR color codes from the API's `modeCodes` field
-3. **Zone** - Groups repeater channels by UK region + band + mode, splitting zones that exceed the 250-channel Anytone limit. Appends static simplex/utility zones.
-4. **Load** - Writes the three CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous.
+2. **Transform** - Filters to operational analog/DMR repeaters, removes exact duplicate API rows, swaps TX/RX frequencies to the radio's perspective, and generates unique channel names (max 16 chars). Names keep the API callsign suffix (e.g. `-L`, `-C`) and include the band, so the same callsign on 2m and 70cm stays distinct. DMR color codes are extracted from the API's `modeCodes` field.
+3. **Zone** - Groups repeater channels by UK region + band + mode + type. Repeaters use `FM`/`DMR`; gateways use `AG`/`DG`. Zones above the 250-channel Anytone limit are split into numbered zones. Static simplex/utility zones are appended.
+4. **Load** - Writes the CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous, and every zone member resolves to exactly one channel name.
 
 Repeaters with both analog and DMR modes produce three channels (one FM, two DMR — TS1 and TS2).
 
@@ -87,6 +87,27 @@ Eight additional zones are included with every codeplug:
 | ISS | 7ch | Doppler-shifted downlinks + cross-band repeater |
 | MARINE VHF | 22ch | Simplex-only channels, TX prohibited |
 
+### Zone labels
+
+Dynamic zones are named `{region} {band} {mode}`. Repeater zones use `FM` or `DMR`; gateway zones use `AG` (analog gateway) or `DG` (digital gateway). Examples: `SW 2m FM`, `SCOT 70cm DMR`, `MIDL 2m AG`.
+
+In `Zone.CSV`, `A Channel` defaults to the first member and `B Channel` to the second (or the first member for a single-channel zone).
+
+| Region | Meaning |
+|--------|---------|
+| `SW` | South West England |
+| `WAL` | Wales |
+| `NW` | North West England |
+| `MIDL` | Midlands |
+| `NE` | North East England |
+| `SE` | South East England |
+| `E.ANG` | East Anglia |
+| `SCOT` | Scotland |
+| `N.IRE` | Northern Ireland |
+| `CH.IS` | Channel Islands |
+| `LONDON` | London |
+| `OTHER` | Unmapped or invalid Maidenhead locator |
+
 ### BrandMeister talkgroups
 
 Talkgroups are fetched from the [BrandMeister API](https://api.brandmeister.network/v2/talkgroup/) at runtime and filtered to a curated set of ~22 UK-relevant IDs (e.g. Local, UK Wide, Regional, TAC channels). Private call IDs (BM Parrot 9990, UK Parrot 234997) are not present in the API so they are added automatically as fallbacks. All DMR channels default to TG9 (Local).
@@ -103,6 +124,12 @@ A GitHub Actions workflow builds the codeplug every Monday and on manual dispatc
 
 ```bash
 task test
+```
+
+Live-data checks are opt-in because they hit the RSGB API:
+
+```bash
+CODEPLUG_CSV_LIVE_TESTS=1 .venv/bin/python -m pytest -m network
 ```
 
 ## License

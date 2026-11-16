@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import logging
+from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -60,7 +61,16 @@ def _write_rows(
 
 
 def write_channels(channels: list[AnytoneChannel], output_dir: Path) -> Path:
-    """Write Channel.CSV with all required columns."""
+    """Write Channel.CSV with all required columns.
+
+    Channel names are the foreign key used by Zone.CSV, so duplicates are
+    rejected rather than silently producing ambiguous zone members.
+    """
+    names = [ch.name for ch in channels]
+    duplicates = sorted(name for name, count in Counter(names).items() if count > 1)
+    if duplicates:
+        raise ValueError(f"Duplicate channel names: {duplicates}")
+
     path = output_dir / "Channel.CSV"
     rows = (_channel_row(i, ch) for i, ch in enumerate(channels, start=1))
     _write_rows(path, CHANNEL_COLUMNS, rows)
@@ -69,13 +79,36 @@ def write_channels(channels: list[AnytoneChannel], output_dir: Path) -> Path:
 
 
 def write_zones(zones: list[AnytoneZone], output_dir: Path) -> Path:
-    """Write Zone.CSV."""
+    """Write Zone.CSV, rejecting ambiguous zone/member names."""
+    zone_names = [zone.name for zone in zones]
+    duplicate_zones = sorted(
+        name for name, count in Counter(zone_names).items() if count > 1
+    )
+    if duplicate_zones:
+        raise ValueError(f"Duplicate zone names: {duplicate_zones}")
+
     path = output_dir / "Zone.CSV"
     rows: list[dict[str, str]] = []
     for i, zone in enumerate(zones, start=1):
         members = "|".join(ch.name for ch in zone.channels)
+        member_names = [ch.name for ch in zone.channels]
+        duplicates = sorted(
+            name
+            for name, count in Counter(member_names).items()
+            if count > 1
+        )
+        if duplicates:
+            raise ValueError(
+                f"Duplicate members in zone {zone.name!r}: {duplicates}"
+            )
         a_channel = zone.channels[0].name if zone.channels else ""
-        b_channel = zone.channels[0].name if zone.channels else ""
+        b_channel = (
+            zone.channels[1].name
+            if len(zone.channels) > 1
+            else zone.channels[0].name
+            if zone.channels
+            else ""
+        )
         rows.append(
             {
                 "No.": str(i),

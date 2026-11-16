@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-import re
 
-from .config import EXCLUDED_TYPES, GATEWAY_TYPES, MAX_NAME_LENGTH
+from .config import DMR_SLOTS, EXCLUDED_TYPES, GATEWAY_TYPES, fit_name
 from .models import AnytoneChannel, Repeater
-from .regions import locator_to_region
+from .regions import UNKNOWN_REGION, locator_to_region
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +17,7 @@ def filter_repeaters(
 ) -> list[Repeater]:
     """Keep only operational analog/DMR repeaters, excluding beacons etc."""
     result = []
+    seen: set[tuple[str, str, int, int, tuple[str, ...], str]] = set()
     for r in repeaters:
         if r.status != "OPERATIONAL":
             continue
@@ -29,7 +29,29 @@ def filter_repeaters(
             continue
         if locator_prefix and not r.locator.upper().startswith(locator_prefix.upper()):
             continue
+
+        # The live API contains exact duplicate records.  Keeping both would
+        # create duplicate channel names and an ambiguous Zone.CSV reference.
+        identity = (
+            r.repeater,
+            r.band,
+            r.tx,
+            r.rx,
+            tuple(r.mode_codes),
+            r.locator.upper(),
+        )
+        if identity in seen:
+            logger.warning(
+                "Ignoring duplicate repeater record: %s %s (%.5f/%.5f MHz)",
+                r.repeater,
+                r.band,
+                r.tx / 1_000_000,
+                r.rx / 1_000_000,
+            )
+            continue
+        seen.add(identity)
         result.append(r)
+
     logger.info("Filtered to %d repeaters", len(result))
     return result
 
@@ -39,18 +61,38 @@ def _hz_to_mhz(hz: int) -> str:
     return f"{hz / 1_000_000:.5f}"
 
 
-def _clean_callsign(callsign: str) -> str:
-    """Strip link suffixes like -L, -R from callsign."""
-    return re.sub(r"-[A-Z]$", "", callsign)
-
-
-def _make_channel_name(callsign: str, suffix: str) -> str:
+def _make_channel_name(callsign: str, band: str, suffix: str) -> str:
     """Build a channel name within MAX_NAME_LENGTH chars.
 
-    Format: '{callsign} {suffix}'
+    Format: '{callsign} {band} {suffix}'.  The band is required for global
+    uniqueness because the same callsign can appear on 2m and 70cm, and the
+    API callsign suffix (e.g. -C/-L/-R) is kept as a site discriminator.
     """
-    clean = _clean_callsign(callsign)
-    return f"{clean} {suffix}"[:MAX_NAME_LENGTH]
+    return fit_name(f"{callsign.strip()} {band}", f" {suffix}")
+
+
+def _ensure_unique_channel_names(channels: list[AnytoneChannel]) -> None:
+    """Make every channel name unique, renaming later collisions loudly."""
+    seen: dict[str, int] = {}
+    for channel in channels:
+        base = channel.name
+        if base not in seen:
+            seen[base] = 1
+            continue
+
+        attempt = seen[base] + 1
+        while True:
+            candidate = fit_name(base, f"~{attempt}")
+            if candidate not in seen:
+                break
+            attempt += 1
+
+        channel.name = candidate
+        seen[base] = attempt
+        seen[candidate] = 1
+        logger.warning(
+            "Duplicate channel name %r renamed to %r", base, channel.name
+        )
 
 
 def _extract_color_code(mode_codes: list[str]) -> int:
@@ -92,7 +134,8 @@ def transform_repeaters(
 ) -> list[AnytoneChannel]:
     """Convert filtered Repeater list to AnytoneChannel list.
 
-    Multimode repeaters (both A and M in modeCodes) produce two channels.
+    Multimode repeaters (both A and M in modeCodes) produce three channels:
+    one FM channel plus one DMR channel per time slot.
     """
     channels: list[AnytoneChannel] = []
     for r in repeaters:
@@ -100,6 +143,13 @@ def transform_repeaters(
         has_dmr = any(mc == "M" or mc.startswith("M:") for mc in r.mode_codes)
         band = _band_label(r.band)
         region = locator_to_region(r.locator)
+        if region == UNKNOWN_REGION:
+            logger.warning(
+                "No region mapping for %s locator %r; using %s",
+                r.repeater,
+                r.locator,
+                UNKNOWN_REGION,
+            )
         rpt_type = "GW" if r.type in GATEWAY_TYPES else "RPT"
 
         # API tx = repeater transmits → radio receives
@@ -109,7 +159,7 @@ def transform_repeaters(
         if has_analog:
             channels.append(
                 AnytoneChannel(
-                    name=_make_channel_name(r.repeater, "FM"),
+                    name=_make_channel_name(r.repeater, band, "FM"),
                     rx_freq=rx_freq,
                     tx_freq=tx_freq,
                     channel_type="A-Analog",
@@ -126,10 +176,10 @@ def transform_repeaters(
 
         if has_dmr:
             cc = _extract_color_code(r.mode_codes)
-            for slot, suffix in ((1, "TS1"), (2, "TS2")):
+            for slot, suffix in DMR_SLOTS:
                 channels.append(
                     AnytoneChannel(
-                        name=_make_channel_name(r.repeater, suffix),
+                        name=_make_channel_name(r.repeater, band, suffix),
                         rx_freq=rx_freq,
                         tx_freq=tx_freq,
                         channel_type="D-Digital",
@@ -146,5 +196,6 @@ def transform_repeaters(
                     )
                 )
 
+    _ensure_unique_channel_names(channels)
     logger.info("Generated %d channels", len(channels))
     return channels

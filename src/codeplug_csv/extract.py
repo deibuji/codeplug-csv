@@ -15,13 +15,13 @@ from .config import (
     BRANDMEISTER_API_URL,
     HTTP_TIMEOUT,
     MAX_CONCURRENT,
-    MAX_NAME_LENGTH,
     NON_UK_CURATED_IDS,
     PRIVATE_CALL_IDS,
     RADIOID_CSV_URL,
     RADIOID_TIMEOUT,
     TALKGROUP_NAME_OVERRIDES,
     UK_TG_PREFIX,
+    fit_name,
 )
 from .models import Repeater, RepeaterModel, TalkGroup
 
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 def _make_talkgroup(tg_id: int, fallback_name: str) -> TalkGroup:
     """Build an Anytone talkgroup entry for *tg_id*."""
-    name = TALKGROUP_NAME_OVERRIDES.get(tg_id, fallback_name)[:MAX_NAME_LENGTH]
+    name = fit_name(TALKGROUP_NAME_OVERRIDES.get(tg_id, fallback_name))
     return TalkGroup(
         name=name,
         radio_id=tg_id,

@@ -2,16 +2,44 @@
 
 from __future__ import annotations
 
-from codeplug_csv.models import Repeater
+from codeplug_csv.config import MAX_NAME_LENGTH
+from codeplug_csv.models import AnytoneChannel, Repeater
 from codeplug_csv.transform import (
     _bandwidth_str,
-    _clean_callsign,
     _ctcss_str,
+    _ensure_unique_channel_names,
     _extract_color_code,
     _hz_to_mhz,
+    _make_channel_name,
     filter_repeaters,
     transform_repeaters,
 )
+
+
+def _repeater(
+    callsign: str,
+    *,
+    band: str = "2M",
+    tx: int = 145_687_500,
+    rx: int = 145_087_500,
+    mode_codes: list[str] | None = None,
+    locator: str = "IO94DR",
+    status: str = "OPERATIONAL",
+    rpt_type: str = "RL",
+) -> Repeater:
+    return Repeater(
+        repeater=callsign,
+        tx=tx,
+        rx=rx,
+        band=band,
+        mode_codes=mode_codes or ["A"],
+        ctcss=118.8,
+        txbw=12.5,
+        town="TEST",
+        status=status,
+        type=rpt_type,
+        locator=locator,
+    )
 
 
 class TestFilterRepeaters:
@@ -60,29 +88,56 @@ class TestFilterRepeaters:
         callsigns = [r.repeater for r in filtered]
         assert "GB7LD" in callsigns  # modeCodes=["M"]
 
+    def test_deduplicates_exact_records(self):
+        """Identical API rows must not produce duplicate channel names."""
+        original = _repeater("GB3IV")
+        duplicate = _repeater("GB3IV")
+
+        filtered = filter_repeaters([original, duplicate])
+
+        assert len(filtered) == 1
+
 
 class TestHelpers:
     def test_hz_to_mhz(self):
         assert _hz_to_mhz(145687500) == "145.68750"
         assert _hz_to_mhz(439450000) == "439.45000"
 
-    def test_clean_callsign(self):
-        assert _clean_callsign("GB3CD-L") == "GB3CD"
-        assert _clean_callsign("GB7AA") == "GB7AA"
-        assert _clean_callsign("GB3WR-R") == "GB3WR"
-
-    def test_make_channel_name(self):
-        from codeplug_csv.transform import _make_channel_name
-
-        name = _make_channel_name("GB3CD-L", "FM")
-        assert name == "GB3CD FM"
-        assert len(name) <= 16
+    def test_make_channel_name_keeps_callsign_suffix_and_band(self):
+        name = _make_channel_name("GB3CD-L", "2m", "FM")
+        assert name == "GB3CD-L 2m FM"
+        assert len(name) <= MAX_NAME_LENGTH
 
     def test_make_channel_name_ts_suffix(self):
-        from codeplug_csv.transform import _make_channel_name
+        assert _make_channel_name("GB7AA", "70cm", "TS1") == "GB7AA 70cm TS1"
+        assert _make_channel_name("GB7AA", "70cm", "TS2") == "GB7AA 70cm TS2"
 
-        assert _make_channel_name("GB7AA", "TS1") == "GB7AA TS1"
-        assert _make_channel_name("GB7AA", "TS2") == "GB7AA TS2"
+    def test_make_channel_name_reserves_suffix_when_truncating(self):
+        name = _make_channel_name("GB3ABCDEFGHIJ-L", "70cm", "TS1")
+        assert len(name) <= MAX_NAME_LENGTH
+        assert name.endswith("TS1")
+
+    def test_ensure_unique_channel_names_renames_collisions(self):
+        channels = [
+            AnytoneChannel(
+                name="GB3IM 70cm FM",
+                rx_freq="430.82500",
+                tx_freq="438.42500",
+                channel_type="A-Analog",
+            ),
+            AnytoneChannel(
+                name="GB3IM 70cm FM",
+                rx_freq="430.82500",
+                tx_freq="438.42500",
+                channel_type="A-Analog",
+            ),
+        ]
+
+        _ensure_unique_channel_names(channels)
+
+        assert len({ch.name for ch in channels}) == 2
+        assert channels[0].name == "GB3IM 70cm FM"
+        assert channels[1].name.endswith("~2")
 
     def test_extract_color_code_with_value(self):
         assert _extract_color_code(["M:3"]) == 3
@@ -119,22 +174,22 @@ class TestTransformRepeaters:
         gb3rd = [ch for ch in channels if "GB3RD" in ch.name]
         assert len(gb3rd) == 3
         names = {ch.name for ch in gb3rd}
-        assert "GB3RD FM" in names
-        assert "GB3RD TS1" in names
-        assert "GB3RD TS2" in names
+        assert "GB3RD 70cm FM" in names
+        assert "GB3RD 70cm TS1" in names
+        assert "GB3RD 70cm TS2" in names
 
     def test_dmr_color_code(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb7aa_ts1 = next(ch for ch in channels if ch.name == "GB7AA TS1")
+        gb7aa_ts1 = next(ch for ch in channels if ch.name == "GB7AA 70cm TS1")
         assert gb7aa_ts1.color_code == 1
-        gb7av_ts1 = next(ch for ch in channels if ch.name == "GB7AV TS1")
+        gb7av_ts1 = next(ch for ch in channels if ch.name == "GB7AV 70cm TS1")
         assert gb7av_ts1.color_code == 3
 
     def test_bare_m_default_color_code(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb7ld_ts1 = next(ch for ch in channels if ch.name == "GB7LD TS1")
+        gb7ld_ts1 = next(ch for ch in channels if ch.name == "GB7LD 70cm TS1")
         assert gb7ld_ts1.color_code == 1
 
     def test_analog_ctcss(self, sample_repeaters):
@@ -153,7 +208,9 @@ class TestTransformRepeaters:
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
         for ch in channels:
-            assert len(ch.name) <= 16, f"Channel name too long: {ch.name!r}"
+            assert len(ch.name) <= MAX_NAME_LENGTH, (
+                f"Channel name too long: {ch.name!r}"
+            )
 
     def test_analog_mode_is_anl(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
@@ -167,10 +224,71 @@ class TestTransformRepeaters:
         channels = transform_repeaters(filtered)
         gb7aa = [ch for ch in channels if "GB7AA" in ch.name]
         assert len(gb7aa) == 2
-        assert gb7aa[0].name == "GB7AA TS1"
+        assert gb7aa[0].name == "GB7AA 70cm TS1"
         assert gb7aa[0].slot == 1
-        assert gb7aa[1].name == "GB7AA TS2"
+        assert gb7aa[1].name == "GB7AA 70cm TS2"
         assert gb7aa[1].slot == 2
+
+    def test_same_callsign_on_both_bands_gets_unique_names(self):
+        repeaters = [
+            _repeater(
+                "GB7HQ",
+                band="2M",
+                tx=145_662_500,
+                rx=145_062_500,
+                mode_codes=["M:1"],
+                locator="IO93",
+            ),
+            _repeater(
+                "GB7HQ",
+                band="70CM",
+                tx=433_025_000,
+                rx=434_625_000,
+                mode_codes=["M:1"],
+                locator="IO93",
+            ),
+        ]
+
+        channels = transform_repeaters(repeaters)
+        names = [ch.name for ch in channels]
+
+        assert names == [
+            "GB7HQ 2m TS1",
+            "GB7HQ 2m TS2",
+            "GB7HQ 70cm TS1",
+            "GB7HQ 70cm TS2",
+        ]
+        assert len(names) == len(set(names))
+
+    def test_suffix_variants_get_unique_names(self):
+        repeaters = [
+            _repeater(
+                "GB3IM-C",
+                band="70CM",
+                tx=430_825_000,
+                rx=438_425_000,
+                locator="IO74SD",
+            ),
+            _repeater(
+                "GB3IM-R",
+                band="70CM",
+                tx=430_825_000,
+                rx=438_425_000,
+                locator="IO74TI",
+            ),
+        ]
+
+        channels = transform_repeaters(repeaters)
+        names = [ch.name for ch in channels]
+
+        assert names == ["GB3IM-C 70cm FM", "GB3IM-R 70cm FM"]
+        assert len(names) == len(set(names))
+
+    def test_unknown_locator_uses_other_region(self):
+        channels = transform_repeaters(
+            [_repeater("GB3IV", locator="I065PE")]
+        )
+        assert channels[0].region == "OTHER"
 
     def test_region_from_locator(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)

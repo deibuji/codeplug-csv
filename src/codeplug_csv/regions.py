@@ -66,7 +66,17 @@ _SUBSQUARE_OVERRIDES: dict[str, tuple[str, str, str]] = {
     "IO74": ("G", "X", "NW"),        # Isle of Man → NW (default N.IRE)
 }
 
-_DEFAULT_REGION = "SE"
+UNKNOWN_REGION = "OTHER"
+
+#: All region labels emitted by :func:`locator_to_region`.
+UK_REGIONS: tuple[str, ...] = tuple(
+    sorted(
+        {
+            *_GRID_SQUARE_REGION.values(),
+            *(override[2] for override in _SUBSQUARE_OVERRIDES.values()),
+        }
+    )
+)
 
 
 def locator_to_region(locator: str) -> str:
@@ -75,16 +85,17 @@ def locator_to_region(locator: str) -> str:
     Uses the first 4 characters as the grid square, with optional
     subsquare-column refinement when a 5th+ character is present.
 
-    Falls back to 'SE' for unrecognised locators.
+    Returns ``OTHER`` for short, empty, or unrecognised locators so they are
+    visible as a separate zone rather than silently polluting ``SE``.
     """
     if not locator or len(locator) < 4:
-        return _DEFAULT_REGION
+        return UNKNOWN_REGION
 
     grid = locator[:4].upper()
     base = _GRID_SQUARE_REGION.get(grid)
 
     if base is None:
-        return _DEFAULT_REGION
+        return UNKNOWN_REGION
 
     # Check subsquare override if we have at least a 5th character
     if len(locator) >= 5 and grid in _SUBSQUARE_OVERRIDES:

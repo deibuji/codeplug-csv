@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ def output_dir(tmp_path: Path) -> Path:
 def sample_channels() -> list[AnytoneChannel]:
     return [
         AnytoneChannel(
-            name="GB3CD FM",
+            name="GB3CD-L 2m FM",
             rx_freq="145.68750",
             tx_freq="145.08750",
             channel_type="A-Analog",
@@ -33,7 +34,7 @@ def sample_channels() -> list[AnytoneChannel]:
             mode="ANL",
         ),
         AnytoneChannel(
-            name="GB7AA TS1",
+            name="GB7AA 70cm TS1",
             rx_freq="439.45000",
             tx_freq="430.85000",
             channel_type="D-Digital",
@@ -74,7 +75,7 @@ class TestWriteChannels:
             reader = csv.DictReader(f)
             rows = list(reader)
         analog = rows[0]
-        assert analog["Channel Name"] == "GB3CD FM"
+        assert analog["Channel Name"] == "GB3CD-L 2m FM"
         assert analog["Channel Type"] == "A-Analog"
         assert analog["Receive Frequency"] == "145.68750"
         assert analog["Transmit Frequency"] == "145.08750"
@@ -87,7 +88,7 @@ class TestWriteChannels:
             reader = csv.DictReader(f)
             rows = list(reader)
         digital = rows[1]
-        assert digital["Channel Name"] == "GB7AA TS1"
+        assert digital["Channel Name"] == "GB7AA 70cm TS1"
         assert digital["Channel Type"] == "D-Digital"
         assert digital["RX Color Code"] == "1"
         assert digital["TxCc"] == "1"
@@ -100,6 +101,12 @@ class TestWriteChannels:
             for row in reader:
                 for col in CHANNEL_COLUMNS:
                     assert col in row, f"Missing column: {col}"
+
+    def test_rejects_duplicate_channel_names(self, sample_channels, output_dir):
+        channels = [sample_channels[0], replace(sample_channels[0])]
+
+        with pytest.raises(ValueError, match="Duplicate channel names"):
+            write_channels(channels, output_dir)
 
     def test_tx_prohibit_on(self, output_dir):
         ch = AnytoneChannel(
@@ -117,7 +124,7 @@ class TestWriteChannels:
 
     def test_color_code_written_to_both_columns(self, output_dir):
         ch = AnytoneChannel(
-            name="GB7BS TS1",
+            name="GB7BS 70cm TS1",
             rx_freq="439.45000",
             tx_freq="430.85000",
             channel_type="D-Digital",
@@ -157,6 +164,37 @@ class TestWriteZones:
         assert "|" in row["Zone Channel Member"]
         members = row["Zone Channel Member"].split("|")
         assert len(members) == 2
+
+    def test_rejects_duplicate_zone_names(self, sample_channels, output_dir):
+        zones = [
+            AnytoneZone(name="test", channels=[sample_channels[0]]),
+            AnytoneZone(name="test", channels=[sample_channels[1]]),
+        ]
+
+        with pytest.raises(ValueError, match="Duplicate zone names"):
+            write_zones(zones, output_dir)
+
+    def test_rejects_duplicate_zone_members(self, sample_channels, output_dir):
+        zones = [
+            AnytoneZone(
+                name="test", channels=[sample_channels[0], sample_channels[0]]
+            )
+        ]
+
+        with pytest.raises(ValueError, match="Duplicate members"):
+            write_zones(zones, output_dir)
+
+    def test_a_and_b_channels_are_first_two_members(
+        self, sample_channels, output_dir
+    ):
+        zones = [AnytoneZone(name="test", channels=sample_channels)]
+        write_zones(zones, output_dir)
+        with open(output_dir / "Zone.CSV") as f:
+            reader = csv.DictReader(f)
+            row = next(reader)
+
+        assert row["A Channel"] == sample_channels[0].name
+        assert row["B Channel"] == sample_channels[1].name
 
 
 @pytest.fixture

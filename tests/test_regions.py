@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from codeplug_csv.regions import locator_to_region
+from codeplug_csv.regions import UNKNOWN_REGION, locator_to_region
 
 
 class TestLocatorToRegion:
@@ -98,16 +98,17 @@ class TestLocatorToRegion:
 
     # --- Edge cases ---
 
-    def test_short_locator_returns_default(self):
-        assert locator_to_region("IO9") == "SE"
-        assert locator_to_region("IO") == "SE"
-        assert locator_to_region("I") == "SE"
+    def test_short_locator_returns_unknown(self):
+        assert locator_to_region("IO9") == UNKNOWN_REGION
+        assert locator_to_region("IO") == UNKNOWN_REGION
+        assert locator_to_region("I") == UNKNOWN_REGION
 
-    def test_empty_locator_returns_default(self):
-        assert locator_to_region("") == "SE"
+    def test_empty_locator_returns_unknown(self):
+        assert locator_to_region("") == UNKNOWN_REGION
 
-    def test_unknown_grid_returns_default(self):
-        assert locator_to_region("ZZ99AA") == "SE"
+    def test_unknown_grid_returns_unknown(self):
+        assert locator_to_region("ZZ99AA") == UNKNOWN_REGION
+        assert locator_to_region("I065PE") == UNKNOWN_REGION
 
     def test_four_char_locator_uses_base_only(self):
         """With only 4 chars, no subsquare override is applied."""

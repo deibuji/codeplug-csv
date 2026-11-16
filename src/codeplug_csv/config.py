@@ -30,6 +30,29 @@ MAX_NAME_LENGTH = 16
 # Maximum channels per zone
 MAX_ZONE_CHANNELS = 250
 
+# User-facing mode labels used in zone names.  The internal mode values stay
+# ANL/DMR so they remain stable for grouping and tests.
+MODE_LABELS: dict[str, str] = {"ANL": "FM", "DMR": "DMR"}
+
+# Gateway repeaters are grouped separately and labelled by their gateway type.
+GATEWAY_LABELS: dict[str, str] = {"ANL": "AG", "DMR": "DG"}
+
+# DMR channels are emitted once per time slot.
+DMR_SLOTS: tuple[tuple[int, str], ...] = ((1, "TS1"), (2, "TS2"))
+
+
+def fit_name(text: str, suffix: str = "") -> str:
+    """Return *text* plus *suffix*, truncated to ``MAX_NAME_LENGTH``.
+
+    The suffix is always preserved so discriminators such as ``TS1`` or a
+    zone split part number are never silently dropped.
+    """
+    max_text = MAX_NAME_LENGTH - len(suffix)
+    if max_text < 0:
+        return suffix[-MAX_NAME_LENGTH:]
+    return text[:max_text] + suffix
+
+
 # ---------- Anytone Channel.CSV column definitions ----------
 
 CHANNEL_COLUMNS = [

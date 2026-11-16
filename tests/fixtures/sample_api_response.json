@@ -179,6 +179,24 @@
       "locator": "IO91NP",
       "dbwErp": 6,
       "extraDetails": null
+    },
+    {
+      "id": 950,
+      "fac": true,
+      "type": "RL",
+      "status": "OPERATIONAL",
+      "keeperCallsign": "G0NEC",
+      "town": "LEEDS",
+      "modeCodes": ["A"],
+      "tx": 430925000,
+      "repeater": "GB3NEC",
+      "rx": 438525000,
+      "ctcss": 82.5,
+      "txbw": 12.5,
+      "band": "70CM",
+      "locator": "IO94AA",
+      "dbwErp": 10,
+      "extraDetails": null
     }
   ]
 }

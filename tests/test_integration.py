@@ -145,7 +145,6 @@ class TestEndToEnd:
 
         assert len(rows) > 0
 
-        callsigns = {r["Channel Name"] for r in rows}
         # GB3CD-L is analog in the fixture
         gb3cd_rows = [r for r in rows if "GB3CD" in r["Channel Name"]]
         assert gb3cd_rows, "GB3CD channels missing"
@@ -185,13 +184,92 @@ class TestEndToEnd:
 
         zone_names = {r["Zone Name"] for r in rows}
 
-        # At least one static simplex zone must appear
+        # Every static simplex zone must appear
         static_names = {z.name for z in get_static_zones()}
-        assert zone_names & static_names, f"No static zones found in {zone_names}"
+        assert zone_names >= static_names, f"Missing static zones in {zone_names}"
 
-        # At least one dynamic zone containing GB7AA
+        # The fixture has a LONDON 70cm DMR repeater (GB7AA)
+        assert "LONDON 70cm DMR" in zone_names
         gb7aa_zones = [r for r in rows if "GB7AA" in r["Zone Channel Member"]]
         assert gb7aa_zones, "No zone contains GB7AA"
+
+    def test_zone_names_are_unique(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q"])
+
+        with open(tmp_path / "Zone.CSV") as f:
+            rows = list(csv.DictReader(f))
+
+        names = [r["Zone Name"] for r in rows]
+        assert len(names) == len(set(names))
+
+    def test_channel_names_are_unique(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q"])
+
+        with open(tmp_path / "Channel.CSV") as f:
+            rows = list(csv.DictReader(f))
+
+        names = [r["Channel Name"] for r in rows]
+        assert len(names) == len(set(names))
+
+    def test_zone_membership_is_total_and_disjoint(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q"])
+
+        with open(tmp_path / "Channel.CSV") as f:
+            channel_names = [r["Channel Name"] for r in csv.DictReader(f)]
+        with open(tmp_path / "Zone.CSV") as f:
+            zone_rows = list(csv.DictReader(f))
+
+        members = [
+            member
+            for row in zone_rows
+            for member in row["Zone Channel Member"].split("|")
+        ]
+        known = set(channel_names)
+
+        assert sorted(members) == sorted(channel_names)
+        for row in zone_rows:
+            row_members = row["Zone Channel Member"].split("|")
+            assert len(row_members) == len(set(row_members)), row["Zone Name"]
+            assert all(member in known for member in row_members), row["Zone Name"]
+            assert row["A Channel"] in known, row["Zone Name"]
+            assert row["B Channel"] in known, row["Zone Name"]
+
+    def test_dynamic_zones_do_not_mix_bands(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q"])
+
+        with open(tmp_path / "Channel.CSV") as f:
+            band_by_name = {
+                row["Channel Name"]: (
+                    "2m" if float(row["Receive Frequency"]) < 200 else "70cm"
+                )
+                for row in csv.DictReader(f)
+            }
+        with open(tmp_path / "Zone.CSV") as f:
+            zone_rows = list(csv.DictReader(f))
+
+        static_names = {z.name for z in get_static_zones()}
+        for row in zone_rows:
+            if row["Zone Name"] in static_names:
+                continue
+            member_bands = {
+                band_by_name[member]
+                for member in row["Zone Channel Member"].split("|")
+            }
+            assert len(member_bands) == 1, (
+                f"{row['Zone Name']} mixes {member_bands}"
+            )
 
     def test_talkgroups_csv_structure(
         self, tmp_path, per_band_api_data, sample_bm_data
