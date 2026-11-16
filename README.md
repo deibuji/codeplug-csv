@@ -10,6 +10,7 @@ Covers 2m and 70cm bands, both analog (FM) and digital (DMR) repeaters.
 - **Zone.CSV** - Repeater channels grouped by UK region, band, mode, and type (e.g. "NE 2m FM", "LONDON 70cm DMR", "NE 2m AG"), plus static simplex/utility zones
 - **TalkGroups.CSV** - UK-relevant DMR talkgroups fetched from the BrandMeister API
 - **user.csv** - Full worldwide DMR contact list downloaded from [RadioID](https://www.radioid.net/) (importable as a Digital Contact List in the CPS)
+- **codeplug.yaml** - The same codeplug as a device-independent [qDMR](https://dm3mat.de/software/qdmr)/[dmrconf](https://github.com/hmatuschek/qdmr) YAML file (see below)
 
 ## Install
 
@@ -40,6 +41,9 @@ codeplug-csv --power Mid -o output/        # Set transmit power (Turbo/High/Mid/
 codeplug-csv -v -o output/                 # Verbose logging
 codeplug-csv -q -o output/                 # Quiet: warnings and errors only
 codeplug-csv --no-contacts -o output/      # Skip the RadioID contact download
+codeplug-csv --format anytone -o output/   # Anytone CSVs only (no codeplug.yaml)
+codeplug-csv --format qdmr -o output/      # qDMR YAML only
+codeplug-csv --dmr-id 2345678 --callsign M0ABC -o output/   # Your own DMR identity
 ```
 
 Or run as a module:
@@ -59,12 +63,43 @@ python -m codeplug_csv -o output/
 | `CODEPLUG_CSV_RADIOID_TIMEOUT` | `60` | HTTP timeout in seconds for the contact download |
 | `CODEPLUG_CSV_MAX_CONCURRENT` | `5` | Max concurrent RSGB band requests (minimum 1) |
 
+## qDMR / dmrconf output
+
+`codeplug.yaml` is a device-independent codeplug that the [qDMR](https://dm3mat.de/software/qdmr)
+GUI can open directly and that `dmrconf` can write to a radio:
+
+```bash
+dmrconf verify --radio=d878uv output/codeplug.yaml   # check without hardware
+dmrconf write  --radio=d878uv output/codeplug.yaml   # program the radio
+```
+
+Every DMR channel uses TG9 (Local) as its contact and shares one `UK ALL` RX group
+list containing all UK group calls. Private calls (parrots) are listed as contacts
+but excluded from the group list, because radios silently drop them there.
+Analog channels carry bandwidth and CTCSS tones; receive-only channels (PMR446,
+marine VHF) are marked `rxOnly`.
+
+**You must set your own DMR ID before programming a radio.** The RSGB data
+contains repeaters, never operators, so without `--dmr-id`/`--callsign` the file is
+written with a clearly marked placeholder (`number: 0`, `name: NOCALL`). Either
+pass the flags or edit `radioIDs` in the file. This is why the weekly CI artifact
+is a template rather than a ready-to-use codeplug.
+
+The `user.csv` RadioID database is *not* embedded in the YAML - qDMR keeps a
+separate callsign database, populated with `dmrconf write-db --database=...`.
+
+Channels are emitted with the `digital:`/`analog:` keys rather than the newer
+`dmr:`/`fm:` spelling: the old keys are understood by every released dmrconf
+(0.9 through 0.15), while the new spelling is rejected by 0.14 and earlier.
+Newer releases log a deprecation hint per channel; see `DIGITAL_KEY` /
+`ANALOG_KEY` in `qdmr.py` to switch.
+
 ## How it works
 
 1. **Extract** - Fetches repeater data from `GET /band/2m` and `GET /band/70cm`
 2. **Transform** - Filters to operational analog/DMR repeaters, removes exact duplicate API rows, swaps TX/RX frequencies to the radio's perspective, and generates unique channel names (max 16 chars). Names keep the API callsign suffix (e.g. `-L`, `-C`) and include the band, so the same callsign on 2m and 70cm stays distinct. DMR color codes are extracted from the API's `modeCodes` field.
 3. **Zone** - Groups repeater channels by UK region + band + mode + type. Repeaters use `FM`/`DMR`; gateways use `AG`/`DG`. Zones above the 250-channel Anytone limit are split into numbered zones. Static simplex/utility zones are appended.
-4. **Load** - Writes the CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous, and every zone member resolves to exactly one channel name.
+4. **Load** - Writes the CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous, and every zone member resolves to exactly one channel name. The qDMR writer reuses the same channel and zone names, links channels to zones by generated ids, and verifies that every reference resolves before writing `codeplug.yaml`.
 
 Repeaters with both analog and DMR modes produce three channels (one FM, two DMR — TS1 and TS2).
 
@@ -132,6 +167,14 @@ Live-data checks are opt-in because they hit the RSGB API:
 
 ```bash
 CODEPLUG_CSV_LIVE_TESTS=1 .venv/bin/python -m pytest -m network
+```
+
+The qDMR output is validated structurally in `tests/test_qdmr.py` (dangling
+references, zone coverage, name lengths, colour codes). To check a generated
+file against the real parser:
+
+```bash
+dmrconf verify output/codeplug.yaml
 ```
 
 ## License

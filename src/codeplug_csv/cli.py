@@ -12,9 +12,26 @@ from .config import BANDS
 from .extract import BrandMeisterClient, RadioIDClient, RSGBClient
 from .load import write_channels, write_talkgroups, write_zones
 from .models import Repeater, TalkGroup
+from .qdmr import PLACEHOLDER_CALLSIGN, PLACEHOLDER_DMR_ID, write_qdmr
 from .simplex import get_static_zones
 from .transform import filter_repeaters, transform_repeaters
 from .zones import assign_zones
+
+# Largest DMR ID allowed by the radio (24 bit).
+MAX_DMR_ID = 16_777_215
+
+
+def _dmr_id(value: str) -> int:
+    """argparse type for --dmr-id."""
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid DMR ID: {value!r}") from None
+    if not 0 <= number <= MAX_DMR_ID:
+        raise argparse.ArgumentTypeError(
+            f"DMR ID must be between 0 and {MAX_DMR_ID}"
+        )
+    return number
 
 logger = logging.getLogger("codeplug_csv")
 
@@ -36,14 +53,14 @@ def _configure_logging(verbose: bool, quiet: bool) -> None:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="codeplug-csv",
-        description="Generate Anytone CSV files from RSGB repeater data",
+        description="Generate Anytone CSV and qDMR YAML files from RSGB repeater data",
     )
     parser.add_argument(
         "-o",
         "--output-dir",
         type=Path,
         default=Path("output"),
-        help="Directory for generated CSV files (default: output/)",
+        help="Directory for generated codeplug files (default: output/)",
     )
     parser.add_argument(
         "-b",
@@ -70,6 +87,33 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--no-contacts",
         action="store_true",
         help="Skip downloading the RadioID digital contact list",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["all", "anytone", "qdmr"],
+        default="all",
+        help=(
+            "Output format: Anytone CSVs, qDMR/dmrconf YAML, or all "
+            "(default: all)"
+        ),
+    )
+    parser.add_argument(
+        "--dmr-id",
+        type=_dmr_id,
+        default=PLACEHOLDER_DMR_ID,
+        help=(
+            "Your DMR ID for the qDMR codeplug; a placeholder is emitted "
+            f"when omitted (default: {PLACEHOLDER_DMR_ID})"
+        ),
+    )
+    parser.add_argument(
+        "--callsign",
+        type=str,
+        default=PLACEHOLDER_CALLSIGN,
+        help=(
+            "Your callsign for the qDMR codeplug "
+            f"(default: {PLACEHOLDER_CALLSIGN})"
+        ),
     )
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument(
@@ -168,9 +212,20 @@ async def _run(args: argparse.Namespace) -> None:
     # Derive channel list from zone order so channel numbers align with zones
     all_channels = [ch for zone in all_zones for ch in zone.channels]
 
-    write_channels(all_channels, args.output_dir)
-    write_zones(all_zones, args.output_dir)
-    write_talkgroups(talkgroups_result, args.output_dir)
+    if args.format in ("all", "anytone"):
+        write_channels(all_channels, args.output_dir)
+        write_zones(all_zones, args.output_dir)
+        write_talkgroups(talkgroups_result, args.output_dir)
+
+    if args.format in ("all", "qdmr"):
+        write_qdmr(
+            all_channels,
+            all_zones,
+            talkgroups_result,
+            args.output_dir,
+            dmr_id=args.dmr_id,
+            callsign=args.callsign,
+        )
 
     if not args.quiet:
         print(f"Generated {len(all_channels)} channels in {len(all_zones)} zones")

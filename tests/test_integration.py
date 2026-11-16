@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+import yaml
 
 from codeplug_csv.cli import main
 from codeplug_csv.config import CHANNEL_COLUMNS, TALKGROUP_COLUMNS, ZONE_COLUMNS
@@ -127,12 +128,70 @@ class TestEndToEnd:
         zone_csv = tmp_path / "Zone.CSV"
         tg_csv = tmp_path / "TalkGroups.CSV"
         user_csv = tmp_path / "user.csv"
+        qdmr_yaml = tmp_path / "codeplug.yaml"
 
         assert channel_csv.exists()
         assert zone_csv.exists()
         assert tg_csv.exists()
         assert user_csv.exists()
         assert user_csv.read_bytes() == SAMPLE_USER_CSV
+        assert qdmr_yaml.exists()
+
+    def test_qdmr_codeplug_structure(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q", "--dmr-id", "2345678",
+                  "--callsign", "M0ABC"])
+
+        with open(tmp_path / "codeplug.yaml", encoding="utf-8") as f:
+            codeplug = yaml.safe_load(f)
+
+        assert codeplug["radioIDs"][0]["dmr"]["number"] == 2345678
+        assert codeplug["radioIDs"][0]["dmr"]["name"] == "M0ABC"
+
+        # Every Anytone channel has exactly one qDMR channel with the same name
+        with open(tmp_path / "Channel.CSV") as f:
+            csv_names = [r["Channel Name"] for r in csv.DictReader(f)]
+        yaml_names = [
+            next(iter(entry.values()))["name"] for entry in codeplug["channels"]
+        ]
+        assert yaml_names == csv_names
+
+        # Zone membership stays total and disjoint, as with Zone.CSV
+        ids = [next(iter(e.values()))["id"] for e in codeplug["channels"]]
+        members = [m for zone in codeplug["zones"] for m in zone["A"]]
+        assert sorted(members) == sorted(ids)
+
+        # Every reference resolves
+        contact_ids = {c["dmr"]["id"] for c in codeplug["contacts"]}
+        group_ids = {g["id"] for g in codeplug["groupLists"]}
+        for entry in codeplug["channels"]:
+            body = next(iter(entry.values()))
+            assert body.get("contact") is None or body["contact"] in contact_ids
+            assert (
+                body.get("groupList") is None
+                or body["groupList"] in group_ids
+            )
+
+    def test_format_anytone_omits_qdmr(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q", "--format", "anytone"])
+
+        assert (tmp_path / "Channel.CSV").exists()
+        assert not (tmp_path / "codeplug.yaml").exists()
+
+    def test_format_qdmr_omits_anytone_csvs(
+        self, tmp_path, per_band_api_data, sample_bm_data
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q", "--format", "qdmr"])
+
+        assert (tmp_path / "codeplug.yaml").exists()
+        assert not (tmp_path / "Channel.CSV").exists()
+        assert not (tmp_path / "Zone.CSV").exists()
 
     def test_channel_csv_structure(self, tmp_path, per_band_api_data, sample_bm_data):
         with mocked_http(per_band_api_data, sample_bm_data):

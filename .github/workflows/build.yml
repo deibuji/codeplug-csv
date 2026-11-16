@@ -33,6 +33,15 @@ jobs:
       - name: Generate CSV files
         run: task run
 
+      # Best-effort check of the qDMR YAML against the real parser.  Never
+      # fails the build: the packaged dmrconf version varies by distro.
+      - name: Verify qDMR codeplug (optional)
+        continue-on-error: true
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qdmr
+          dmrconf verify --radio=d878uv output/codeplug.yaml
+
       - name: Get current date
         id: date
         run: echo "today=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
