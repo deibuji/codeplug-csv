@@ -97,7 +97,7 @@ class TestVhfFmSimplex:
     def test_calling_channel_name(self):
         zone = vhf_fm_simplex_zone()
         # V40 (145.500 MHz) is index 40-16=24
-        assert zone.channels[24].name == "V40 CALL"
+        assert zone.channels[24].name == "V40 145.5000 CL"
 
     def test_simplex(self):
         zone = vhf_fm_simplex_zone()
@@ -141,7 +141,7 @@ class TestUhfFmSimplex:
     def test_calling_channel_name(self):
         zone = uhf_fm_simplex_zone()
         # U280 (433.500 MHz) is index 4 in the 25 kHz channel list
-        assert zone.channels[4].name == "U280 CALL"
+        assert zone.channels[4].name == "U280 433.5000 CL"
 
     def test_simplex(self):
         zone = uhf_fm_simplex_zone()
@@ -175,7 +175,7 @@ class TestVhfDvSimplex:
 
     def test_channel_name(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.channels[0].name == "2M DV CALL"
+        assert zone.channels[0].name == "2M DV CL"
 
     def test_frequency(self):
         zone = vhf_dv_simplex_zone()
@@ -289,7 +289,7 @@ class TestUhfDvSimplex:
     def test_calling_channel_name(self):
         zone = uhf_dv_simplex_zone()
         # DH3 is index 2
-        assert zone.channels[2].name == "DH3 CALL"
+        assert zone.channels[2].name == "DH3 CL"
 
     def test_simplex(self):
         zone = uhf_dv_simplex_zone()
@@ -442,7 +442,7 @@ class TestMarineVhf:
     def test_calling_channel_name(self):
         zone = marine_vhf_zone()
         ch16 = next(ch for ch in zone.channels if "16" in ch.name)
-        assert ch16.name == "MAR 16 CALL"
+        assert ch16.name == "MAR 16 CL"
 
     def test_simplex(self):
         zone = marine_vhf_zone()

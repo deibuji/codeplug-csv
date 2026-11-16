@@ -135,10 +135,7 @@ def vhf_fm_simplex_zone() -> AnytoneZone:
     for i in VHF_FM_SIMPLEX_CHANNELS:
         freq = 145.200 + (i - 16) * 0.0125
         freq_str = _mhz_str(freq)
-        if i == 40:
-            name = f"V{i} CALL"
-        else:
-            name = f"V{i} {_name_freq(freq)}"
+        name = f"V{i} {_name_freq(freq)} CL" if i == 40 else f"V{i} {_name_freq(freq)}"
         channels.append(
             AnytoneChannel(
                 name=name,
@@ -160,10 +157,7 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
     for i in UHF_FM_SIMPLEX_CHANNELS:
         freq = 433.400 + (i - 272) * 0.0125
         freq_str = _mhz_str(freq)
-        if i == 280:
-            name = f"U{i} CALL"
-        else:
-            name = f"U{i} {_name_freq(freq)}"
+        name = f"U{i} {_name_freq(freq)} CL" if i == 280 else f"U{i} {_name_freq(freq)}"
         channels.append(
             AnytoneChannel(
                 name=name,
@@ -181,7 +175,7 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
 
 def vhf_dv_simplex_zone() -> AnytoneZone:
     """UK DV calling plus the usable 2m FM/DV simplex channels."""
-    channels = [_dv_simplex_channel("2M DV CALL", 144.6125)]
+    channels = [_dv_simplex_channel("2M DV CL", 144.6125)]
     for i in VHF_DV_SIMPLEX_CHANNELS:
         freq = 145.200 + (i - 16) * 0.0125
         channels.append(_dv_simplex_channel(f"V{i} DV {_name_freq(freq)}", freq))
@@ -200,7 +194,7 @@ def uhf_dv_simplex_zone() -> AnytoneZone:
     channels = []
     for i in range(1, 9):
         freq = 438.5875 + (i - 1) * 0.0125
-        name = f"DH{i} CALL" if i == 3 else f"DH{i}"
+        name = f"DH{i} CL" if i == 3 else f"DH{i}"
         channels.append(_dv_simplex_channel(name, freq))
     for i in UHF_DV_SIMPLEX_CHANNELS:
         freq = 433.400 + (i - 272) * 0.0125
@@ -318,7 +312,7 @@ def marine_vhf_zone() -> AnytoneZone:
     channels = []
     for ch_num, freq in _MARINE_CHANNELS:
         freq_str = _mhz_str(freq)
-        name = f"MAR {ch_num} CALL" if ch_num == 16 else f"MAR {ch_num:02d}"
+        name = f"MAR {ch_num} CL" if ch_num == 16 else f"MAR {ch_num:02d}"
         channels.append(
             AnytoneChannel(
                 name=name,
