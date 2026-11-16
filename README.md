@@ -38,6 +38,8 @@ codeplug-csv -b 2m 70cm -o output/         # Explicit both bands
 codeplug-csv --locator IO91 -o output/     # Filter by grid square prefix
 codeplug-csv --power Mid -o output/        # Set transmit power (Turbo/High/Mid/Low)
 codeplug-csv -v -o output/                 # Verbose logging
+codeplug-csv -q -o output/                 # Quiet: warnings and errors only
+codeplug-csv --no-contacts -o output/      # Skip the RadioID contact download
 ```
 
 Or run as a module:
@@ -45,6 +47,17 @@ Or run as a module:
 ```bash
 python -m codeplug_csv -o output/
 ```
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `CODEPLUG_CSV_API_BASE_URL` | `https://api-beta.rsgb.online` | RSGB ETCC API base URL |
+| `CODEPLUG_CSV_BRANDMEISTER_URL` | `https://api.brandmeister.network/v2` | BrandMeister API base URL |
+| `CODEPLUG_CSV_RADIOID_URL` | `https://www.radioid.net/static/user.csv` | RadioID contact list URL |
+| `CODEPLUG_CSV_HTTP_TIMEOUT` | `30` | HTTP timeout in seconds for RSGB/BrandMeister |
+| `CODEPLUG_CSV_RADIOID_TIMEOUT` | `60` | HTTP timeout in seconds for the contact download |
+| `CODEPLUG_CSV_MAX_CONCURRENT` | `5` | Max concurrent RSGB band requests (minimum 1) |
 
 ## How it works
 

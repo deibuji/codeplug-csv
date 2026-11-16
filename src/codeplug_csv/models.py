@@ -24,15 +24,6 @@ class RepeaterModel(BaseModel):
     locator: str = Field(default="")
 
 
-class TalkGroupModel(BaseModel):
-    """Pydantic model for DMR talkgroup validation."""
-
-    name: str
-    radio_id: int
-    call_type: str = "Group Call"
-    call_alert: str = "None"
-
-
 @dataclass
 class Repeater:
     """Raw repeater record from the RSGB API."""

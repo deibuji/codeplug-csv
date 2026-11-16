@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 import asyncio
-import aiofiles
+import logging
 from pathlib import Path
 
+import aiofiles
 import httpx
+from pydantic import ValidationError
 
 from .config import (
     API_BASE_URL,
@@ -22,9 +23,20 @@ from .config import (
     TALKGROUP_NAME_OVERRIDES,
     UK_TG_PREFIX,
 )
-from .models import Repeater, TalkGroup, RepeaterModel, TalkGroupModel
+from .models import Repeater, RepeaterModel, TalkGroup
 
 logger = logging.getLogger(__name__)
+
+
+def _make_talkgroup(tg_id: int, fallback_name: str) -> TalkGroup:
+    """Build an Anytone talkgroup entry for *tg_id*."""
+    name = TALKGROUP_NAME_OVERRIDES.get(tg_id, fallback_name)[:MAX_NAME_LENGTH]
+    return TalkGroup(
+        name=name,
+        radio_id=tg_id,
+        call_type="Private Call" if tg_id in PRIVATE_CALL_IDS else "Group Call",
+        call_alert="None",
+    )
 
 
 class RSGBClient:
@@ -39,16 +51,17 @@ class RSGBClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.max_concurrent = max_concurrent
+        self.semaphore = asyncio.Semaphore(max_concurrent)
         self._client: httpx.AsyncClient | None = None
 
     async def __aenter__(self) -> RSGBClient:
-        self.semaphore = asyncio.Semaphore(self.max_concurrent)
         self._client = httpx.AsyncClient(timeout=self.timeout)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._client:
             await self._client.aclose()
+            self._client = None
 
     async def fetch_band(self, band: str) -> list[Repeater]:
         """Fetch all repeaters for a given band (e.g. '2m', '70cm')."""
@@ -60,8 +73,20 @@ class RSGBClient:
             resp = await self._client.get(url)
             resp.raise_for_status()
             data = resp.json().get("data", [])
-            logger.info("Got %d repeaters for %s", len(data), band)
-            return [self._parse(item) for item in data]
+
+        # Skip individual malformed records rather than failing the whole run.
+        repeaters: list[Repeater] = []
+        for item in data:
+            try:
+                repeaters.append(self._parse(item))
+            except ValidationError as exc:
+                logger.warning(
+                    "Skipping malformed repeater record %r: %s",
+                    item.get("repeater") or item.get("id"),
+                    exc,
+                )
+        logger.info("Got %d repeaters for %s", len(repeaters), band)
+        return repeaters
 
     async def fetch_bands(self, bands: list[str]) -> list[Repeater]:
         """Fetch repeaters for multiple bands."""
@@ -93,6 +118,7 @@ class BrandMeisterClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._client:
             await self._client.aclose()
+            self._client = None
 
     async def fetch_talkgroups(self) -> list[TalkGroup]:
         """Fetch curated UK-relevant talkgroups from the BrandMeister API."""
@@ -129,56 +155,14 @@ class BrandMeisterClient:
                 continue
 
             found_ids.add(tg_id)
+            talkgroups.append(_make_talkgroup(tg_id, name))
 
-            tg_name = TALKGROUP_NAME_OVERRIDES.get(tg_id, name)
-            tg_name = tg_name[:MAX_NAME_LENGTH]
-
-            call_type = "Private Call" if tg_id in PRIVATE_CALL_IDS else "Group Call"
-
-            try:
-                validated = TalkGroupModel(
-                    name=tg_name,
-                    radio_id=tg_id,
-                    call_type=call_type,
-                    call_alert="None",
-                )
-                talkgroups.append(
-                    TalkGroup(
-                        name=validated.name,
-                        radio_id=validated.radio_id,
-                        call_type=validated.call_type,
-                        call_alert=validated.call_alert,
-                    )
-                )
-            except Exception as e:
-                logger.error("Failed to validate talkgroup %d: %s", tg_id, e)
-                continue
-
-        missing = NON_UK_CURATED_IDS - found_ids
-        for tg_id in sorted(missing):
-            tg_name = TALKGROUP_NAME_OVERRIDES.get(tg_id, str(tg_id))
-            tg_name = tg_name[:MAX_NAME_LENGTH]
-            call_type = "Private Call" if tg_id in PRIVATE_CALL_IDS else "Group Call"
-
-            try:
-                validated = TalkGroupModel(
-                    name=tg_name,
-                    radio_id=tg_id,
-                    call_type=call_type,
-                    call_alert="None",
-                )
-                talkgroups.append(
-                    TalkGroup(
-                        name=validated.name,
-                        radio_id=validated.radio_id,
-                        call_type=validated.call_type,
-                        call_alert=validated.call_alert,
-                    )
-                )
-            except Exception as e:
-                logger.error("Failed to validate missing talkgroup %d: %s", tg_id, e)
-                continue
-            logger.info("Talkgroup %d not in API response, added as %r", tg_id, tg_name)
+        for tg_id in sorted(NON_UK_CURATED_IDS - found_ids):
+            tg = _make_talkgroup(tg_id, str(tg_id))
+            talkgroups.append(tg)
+            logger.debug(
+                "Talkgroup %d not in API response, added as %r", tg_id, tg.name
+            )
 
         talkgroups.sort(key=lambda tg: tg.radio_id)
         return talkgroups
@@ -199,16 +183,27 @@ class RadioIDClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self._client:
             await self._client.aclose()
+            self._client = None
 
     async def download(self, dest: Path) -> Path:
-        """Stream the RadioID user CSV to *dest* and return the path written."""
+        """Stream the RadioID user CSV to *dest* and return the path written.
+
+        The download streams to a temporary ``.part`` file and is only moved
+        onto *dest* once complete, so a failed or cancelled run never leaves a
+        truncated contact list behind.
+        """
         if not self._client:
             raise RuntimeError("Client must be used as an async context manager")
+        tmp = dest.with_name(f"{dest.name}.part")
         logger.info("Downloading RadioID database from %s", self.url)
-        async with self._client.stream("GET", self.url) as response:
-            response.raise_for_status()
-            async with aiofiles.open(dest, "wb") as fh:
-                async for chunk in response.aiter_bytes():
-                    await fh.write(chunk)
+        try:
+            async with self._client.stream("GET", self.url) as response:
+                response.raise_for_status()
+                async with aiofiles.open(tmp, "wb") as fh:
+                    async for chunk in response.aiter_bytes():
+                        await fh.write(chunk)
+            tmp.replace(dest)
+        finally:
+            tmp.unlink(missing_ok=True)
         logger.info("Wrote RadioID database to %s", dest)
         return dest

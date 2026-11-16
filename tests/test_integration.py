@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import csv
 from contextlib import contextmanager
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
 
 from codeplug_csv.cli import main
@@ -22,23 +22,34 @@ SAMPLE_USER_CSV = b"RADIO_ID,CALLSIGN,FIRST_NAME,LAST_NAME\n2340001,M0TST,Test,U
 
 
 def _make_httpx_mock(
-    per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes = SAMPLE_USER_CSV
+    per_band: dict[str, list[dict]],
+    bm_data: dict,
+    user_csv: bytes = SAMPLE_USER_CSV,
+    rsgb_error: Exception | None = None,
+    talkgroup_error: Exception | None = None,
+    stream_error: Exception | None = None,
 ):
     """Return a mock that satisfies httpx.AsyncClient for all three clients:
     1. RSGBClient: async with ... as client: await client.get(url)
     2. BrandMeisterClient: async with ... as client: await client.get(url)
     3. RadioIDClient: async with ... as client: client.stream(...)
+
+    The optional error arguments make exactly one data source fail.
     """
 
     # Use a custom mock for get to handle both sync and async scenarios correctly
     def _get_mock(url: str, **_kwargs):
         if "/talkgroup/" in url:
+            if talkgroup_error is not None:
+                raise talkgroup_error
             resp = MagicMock()
             resp.raise_for_status = MagicMock()
             resp.json = MagicMock(return_value=bm_data)
             return resp
         for band, items in per_band.items():
             if f"/band/{band}" in url:
+                if rsgb_error is not None:
+                    raise rsgb_error
                 resp = MagicMock()
                 resp.raise_for_status = MagicMock()
                 resp.json = MagicMock(return_value={"data": items})
@@ -54,6 +65,8 @@ def _make_httpx_mock(
 
     async def _aiter_bytes():
         yield user_csv
+        if stream_error is not None:
+            raise stream_error
 
     mock_dl_response.aiter_bytes = MagicMock(return_value=_aiter_bytes())
 
@@ -75,9 +88,12 @@ def _make_httpx_mock(
 
 @contextmanager
 def mocked_http(
-    per_band: dict[str, list[dict]], bm_data: dict, user_csv: bytes = SAMPLE_USER_CSV
+    per_band: dict[str, list[dict]],
+    bm_data: dict,
+    user_csv: bytes = SAMPLE_USER_CSV,
+    **failures: Exception,
 ):
-    httpx_mock = _make_httpx_mock(per_band, bm_data, user_csv)
+    httpx_mock = _make_httpx_mock(per_band, bm_data, user_csv, **failures)
     with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=httpx_mock):
         yield
 
@@ -225,21 +241,51 @@ class TestEndToEnd:
             with pytest.raises(SystemExit) as exc_info:
                 main(["-o", str(tmp_path), "--locator", "ZZ99", "-q"])
         assert exc_info.value.code == 0
+        # A run that produces no channels must not leave a contact list behind.
+        assert not (tmp_path / "user.csv").exists()
 
-    def test_exits_one_on_rsgb_failure(self, tmp_path, sample_bm_data):
-        import httpx as _httpx
-
-        failing_cm = AsyncMock()
-        failing_cm.get = AsyncMock(side_effect=_httpx.ConnectError("network down"))
-        # Provide a valid stream mock to avoid the background task crashing on stream()
-        mock_stream_cm = AsyncMock()
-        mock_stream_cm.__aenter__.return_value = MagicMock()
-        mock_stream_cm.__aexit__ = AsyncMock(return_value=None)
-        failing_cm.stream = MagicMock(return_value=mock_stream_cm)
-        failing_cm.__aenter__.return_value = failing_cm
-        failing_cm.__aexit__ = AsyncMock(return_value=None)
-
-        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=failing_cm):
+    def test_exits_one_on_rsgb_failure(
+        self, tmp_path, per_band_api_data, sample_bm_data, caplog
+    ):
+        error = httpx.ConnectError("network down")
+        with mocked_http(per_band_api_data, sample_bm_data, rsgb_error=error):
             with pytest.raises(SystemExit) as exc_info:
                 main(["-o", str(tmp_path), "-q"])
         assert exc_info.value.code == 1
+        assert "Failed to fetch repeater data: network down" in caplog.text
+        # The optional contact download must not outlive the failed run.
+        assert not (tmp_path / "user.csv").exists()
+        assert not list(tmp_path.glob("*.part"))
+
+    def test_exits_one_on_brandmeister_failure(
+        self, tmp_path, per_band_api_data, sample_bm_data, caplog
+    ):
+        error = httpx.ConnectError("brandmeister down")
+        with mocked_http(per_band_api_data, sample_bm_data, talkgroup_error=error):
+            with pytest.raises(SystemExit) as exc_info:
+                main(["-o", str(tmp_path), "-q"])
+        assert exc_info.value.code == 1
+        assert "Failed to fetch talkgroup data: brandmeister down" in caplog.text
+        assert not (tmp_path / "user.csv").exists()
+
+    def test_quiet_suppresses_stdout(
+        self, tmp_path, per_band_api_data, sample_bm_data, capsys
+    ):
+        with mocked_http(per_band_api_data, sample_bm_data):
+            main(["-o", str(tmp_path), "-q"])
+
+        assert (tmp_path / "Channel.CSV").exists()
+        assert capsys.readouterr().out == ""
+
+    def test_download_failure_continues_without_contacts(
+        self, tmp_path, per_band_api_data, sample_bm_data, caplog
+    ):
+        error = httpx.ReadError("connection lost")
+        with mocked_http(per_band_api_data, sample_bm_data, stream_error=error):
+            main(["-o", str(tmp_path), "-q"])
+
+        for name in ("Channel.CSV", "Zone.CSV", "TalkGroups.CSV"):
+            assert (tmp_path / name).exists(), name
+        # A partly downloaded contact list must never be promoted to user.csv.
+        assert not (tmp_path / "user.csv").exists()
+        assert "Failed to download RadioID contacts: connection lost" in caplog.text
