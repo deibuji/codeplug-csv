@@ -175,7 +175,7 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
 
 def vhf_dv_simplex_zone() -> AnytoneZone:
     """UK DV calling plus the usable 2m FM/DV simplex channels."""
-    channels = [_dv_simplex_channel("2M DV CL", 144.6125)]
+    channels = [_dv_simplex_channel("DV 144.6125 CL", 144.6125)]
     for i in VHF_DV_SIMPLEX_CHANNELS:
         freq = 145.200 + (i - 16) * 0.0125
         channels.append(_dv_simplex_channel(f"V{i} DV {_name_freq(freq)}", freq))
@@ -194,7 +194,9 @@ def uhf_dv_simplex_zone() -> AnytoneZone:
     channels = []
     for i in range(1, 9):
         freq = 438.5875 + (i - 1) * 0.0125
-        name = f"DH{i} CL" if i == 3 else f"DH{i}"
+        name = f"DH{i} {_name_freq(freq)}"
+        if i == 3:
+            name += " CL"
         channels.append(_dv_simplex_channel(name, freq))
     for i in UHF_DV_SIMPLEX_CHANNELS:
         freq = 433.400 + (i - 272) * 0.0125

@@ -175,7 +175,7 @@ class TestVhfDvSimplex:
 
     def test_channel_name(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.channels[0].name == "2M DV CL"
+        assert zone.channels[0].name == "DV 144.6125 CL"
 
     def test_frequency(self):
         zone = vhf_dv_simplex_zone()
@@ -260,6 +260,16 @@ class TestUhfDvSimplex:
 
     def test_dh_block_frequencies(self):
         zone = uhf_dv_simplex_zone()
+        assert [ch.name for ch in zone.channels[:8]] == [
+            "DH1 438.5875",
+            "DH2 438.6000",
+            "DH3 438.6125 CL",
+            "DH4 438.6250",
+            "DH5 438.6375",
+            "DH6 438.6500",
+            "DH7 438.6625",
+            "DH8 438.6750",
+        ]
         assert [ch.rx_freq for ch in zone.channels[:8]] == [
             "438.58750",
             "438.60000",
@@ -289,7 +299,7 @@ class TestUhfDvSimplex:
     def test_calling_channel_name(self):
         zone = uhf_dv_simplex_zone()
         # DH3 is index 2
-        assert zone.channels[2].name == "DH3 CL"
+        assert zone.channels[2].name == "DH3 438.6125 CL"
 
     def test_simplex(self):
         zone = uhf_dv_simplex_zone()
