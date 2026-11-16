@@ -252,15 +252,39 @@ class TestUhfDvSimplex:
 
     def test_channel_count(self):
         zone = uhf_dv_simplex_zone()
-        assert len(zone.channels) == 8
+        assert len(zone.channels) == 16
 
     def test_first_channel_freq(self):
         zone = uhf_dv_simplex_zone()
         assert zone.channels[0].rx_freq == "438.58750"
 
-    def test_last_channel_freq(self):
+    def test_dh_block_frequencies(self):
         zone = uhf_dv_simplex_zone()
-        assert zone.channels[-1].rx_freq == "438.67500"
+        assert [ch.rx_freq for ch in zone.channels[:8]] == [
+            "438.58750",
+            "438.60000",
+            "438.61250",
+            "438.62500",
+            "438.63750",
+            "438.65000",
+            "438.66250",
+            "438.67500",
+        ]
+
+    def test_u_dv_copies(self):
+        zone = uhf_dv_simplex_zone()
+        copies = zone.channels[8:]
+        assert [ch.name for ch in copies] == [
+            "U272 DV 433.4",
+            "U274 DV 433.425",
+            "U276 DV 433.45",
+            "U278 DV 433.475",
+            "U280 DV 433.5",
+            "U282 DV 433.525",
+            "U284 DV 433.55",
+            "U286 DV 433.575",
+        ]
+        assert copies[-1].rx_freq == "433.57500"
 
     def test_calling_channel_name(self):
         zone = uhf_dv_simplex_zone()
@@ -463,7 +487,7 @@ class TestGetStaticZones:
     def test_total_channel_count(self):
         zones = get_static_zones()
         total = sum(len(z.channels) for z in zones)
-        assert total == 115
+        assert total == 123
 
     def test_zone_names(self):
         zones = get_static_zones()

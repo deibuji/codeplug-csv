@@ -82,12 +82,12 @@ Eight additional zones are included with every codeplug:
 | VHF FM SIMPLEX | V16–V45 (30ch) | 145.200–145.5625 MHz, V40 = calling channel |
 | UHF FM SIMPLEX | U272–U286 (8ch) | 433.400–433.575 MHz at 25 kHz spacing, U280 = calling channel |
 | VHF DV SIMPLEX | 2M DV CALL + 19 V-channels (20ch) | 144.6125 MHz calling + usable 2m FM/DV simplex channels, DMR CC1 TS1 |
-| UHF DV SIMPLEX | DH1–DH8 (8ch) | 438.5875–438.6750 MHz, DH3 = calling channel |
+| UHF DV SIMPLEX | DH1–DH8 + U272–U286 (16ch) | 438.5875–438.6750 MHz + 433.400–433.575 MHz, DH3 = calling channel |
 | PMR446 | PMR 1–16 (16ch) | 446.00625–446.19375 MHz, TX prohibited |
 | ISS | 7ch | Doppler-shifted downlinks + cross-band repeater |
 | MARINE VHF | 22ch | Simplex-only channels, TX prohibited |
 
-All DV simplex channels use CC1, TS1 and TG9 (Local). The 2m DV set excludes channels designated for internet gateways, slow Morse, FM calling, GB2RS and rally talk-in. V16 (145.200) is included but is shared with the ISS Earth-to-Space uplink.
+All DV simplex channels use CC1, TS1 and TG9 (Local). The 2m DV set excludes channels designated for internet gateways, slow Morse, FM calling, GB2RS and rally talk-in. V16 (145.200) is included but is shared with the ISS Earth-to-Space uplink. The UHF DV zone also includes DV copies of U272–U286; DH3 remains the dedicated DMR calling channel.
 
 ### Zone labels
 

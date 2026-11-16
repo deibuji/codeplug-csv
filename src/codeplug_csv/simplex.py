@@ -24,6 +24,10 @@ VHF_FM_SIMPLEX_CHANNELS: tuple[int, ...] = tuple(range(16, 46))
 # RSGB 70cm FM/DV simplex channels are U272-U286 at 25 kHz spacing.
 UHF_FM_SIMPLEX_CHANNELS: tuple[int, ...] = tuple(range(272, 287, 2))
 
+# The same U channels are valid for DV simplex, so the DV zone carries copies
+# alongside the dedicated DH1-DH8 DMR calling block.
+UHF_DV_SIMPLEX_CHANNELS: tuple[int, ...] = UHF_FM_SIMPLEX_CHANNELS
+
 # V16-V45 are usable for DV simplex, but these channels are designated for
 # other purposes: internet gateways (V17-V19, V21, V23, V25, V27), slow Morse
 # (V20), FM calling (V40), GB2RS news (V42), and rally/exhibition talk-in (V44).
@@ -184,12 +188,19 @@ def vhf_dv_simplex_zone() -> AnytoneZone:
 
 
 def uhf_dv_simplex_zone() -> AnytoneZone:
-    """DH1-DH8: 438.5875-438.6750 MHz, DMR CC1 TS1. DH3 is the calling channel."""
+    """DH1-DH8 plus U272-U286 DV simplex copies.
+
+    DH1-DH8 use 438.5875-438.6750 MHz; DH3 is the dedicated DMR calling
+    channel.  U272-U286 are the 70cm FM/DV simplex channels at 25 kHz spacing.
+    """
     channels = []
     for i in range(1, 9):
         freq = 438.5875 + (i - 1) * 0.0125
         name = f"DH{i} CALL" if i == 3 else f"DH{i}"
         channels.append(_dv_simplex_channel(name, freq))
+    for i in UHF_DV_SIMPLEX_CHANNELS:
+        freq = 433.400 + (i - 272) * 0.0125
+        channels.append(_dv_simplex_channel(f"U{i} DV {_name_freq(freq)}", freq))
     return AnytoneZone(name="UHF DV SIMPLEX", channels=channels)
 
 
