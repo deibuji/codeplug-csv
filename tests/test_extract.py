@@ -10,7 +10,7 @@ import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from codeplug_csv.config import NON_UK_CURATED_IDS, UK_TG_PREFIX
-from codeplug_csv.extract import BrandMeisterClient, RadioIDClient
+from codeplug_csv.extract import BrandMeisterClient, RadioIDClient, RSGBClient
 
 
 class TestBrandMeisterFilterAndParse:
@@ -62,7 +62,7 @@ class TestBrandMeisterFilterAndParse:
 
     def test_missing_curated_ids_added_as_fallback(self, caplog):
         partial_data = {"9": "Local", "235": "UK Wide"}
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.DEBUG):
             talkgroups = BrandMeisterClient._filter_and_parse(partial_data)
         assert "not in API response" in caplog.text
         ids = {tg.radio_id for tg in talkgroups}
@@ -190,3 +190,45 @@ class TestRadioIDClient:
 
         assert dest.exists()
         assert dest.read_bytes() == sample_csv
+
+
+class TestRSGBClientFetchBand:
+    @staticmethod
+    def _client_with_response(items: list[dict]):
+        mock_response = MagicMock()
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json = MagicMock(return_value={"data": items})
+
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_response)
+        mock_client.aclose = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__ = AsyncMock(return_value=None)
+        return mock_client
+
+    @pytest.mark.asyncio
+    async def test_skips_malformed_record_and_keeps_the_rest(self, caplog):
+        items = [
+            {
+                "repeater": "GB3OK",
+                "tx": 145_725_000,
+                "rx": 145_125_000,
+                "band": "2M",
+                "modeCodes": ["A"],
+            },
+            {"repeater": "GB3BAD", "tx": "not-a-number", "band": "2M"},
+        ]
+        mock_client = self._client_with_response(items)
+
+        with patch("codeplug_csv.extract.httpx.AsyncClient", return_value=mock_client):
+            async with RSGBClient(base_url="https://fake") as client:
+                repeaters = await client.fetch_band("2m")
+
+        assert [r.repeater for r in repeaters] == ["GB3OK"]
+        assert "Skipping malformed repeater record 'GB3BAD'" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_fetch_band_raises_without_context(self):
+        client = RSGBClient(base_url="https://fake")
+        with pytest.raises(RuntimeError, match="async context manager"):
+            await client.fetch_band("2m")

@@ -6,11 +6,11 @@ This document outlines the rules, conventions, and commands for any agent operat
 
 Agents must use the following commands defined in `Taskfile.yml` and the CLI for all major operations:
 
-- **`task test`**: Run the entire test suite to ensure full code coverage.
+- **`task test`**: Run the entire test suite.
 - **`task run`**: Generate all required CSV output files in the `output/` directory.
 - **`task`**: Run tests first, then generate output (default behavior).
 - **`task run -- --locator <locator>`**: Pass extra CLI arguments to the task runner.
-- **`codeplug-csv -o output/<file>`**: Generate specific data files, e.g., `codeplug-csv -o output/Channel.CSV`.
+- **`codeplug-csv -o output/`**: Generate all data files into `output/`. `-o` takes a directory, not a file path.
 
 For specific, localized tasks, agents should utilize the `read`, `grep`, and `edit` tools when interacting with files, and the `bash` tool for system operations. When performing complex, multi-step tasks, use the `task` tool or prompt for specific steps.
 
@@ -24,7 +24,7 @@ The codebase adheres to **Python** conventions (PEP 8). Agents must strictly fol
 - **Module Structure**: Keep related logic grouped logically within modules (e.g., `src/codeplug_csv/extract.py`, `src/codeplug_csv/transform.py`).
 
 ### Imports and Dependencies
-- **Absolute Imports**: Use absolute imports for all module references (e.g., `from src.codeplug_csv import extract`).
+- **Imports**: Use relative imports within the package (e.g., `from .config import BANDS`). The `src/` directory is not importable as a package.
 - **Minimal Imports**: Only import necessary modules to maintain readability and efficiency.
 - **Dependencies**: Only use libraries explicitly listed in `pyproject.toml` or the standard Python library unless explicitly added by the task.
 
