@@ -11,8 +11,12 @@ def _mhz_str(freq: float) -> str:
 
 
 def _name_freq(freq: float) -> str:
-    """Format a frequency for use in a channel name (compact, no trailing zeros)."""
-    return f"{freq:.4f}".rstrip("0").rstrip(".")
+    """Format a frequency for a channel name with a fixed 4 decimal places.
+
+    Four decimals are enough to represent the 12.5 kHz channel spacing exactly.
+    The CSV Receive/Transmit columns remain at 5 decimal places.
+    """
+    return f"{freq:.4f}"
 
 
 # ---------- Simplex channel plans ----------
@@ -132,7 +136,7 @@ def vhf_fm_simplex_zone() -> AnytoneZone:
         freq = 145.200 + (i - 16) * 0.0125
         freq_str = _mhz_str(freq)
         if i == 40:
-            name = f"V{i} {_name_freq(freq)} CALL"
+            name = f"V{i} CALL"
         else:
             name = f"V{i} {_name_freq(freq)}"
         channels.append(
@@ -157,7 +161,7 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
         freq = 433.400 + (i - 272) * 0.0125
         freq_str = _mhz_str(freq)
         if i == 280:
-            name = f"U{i} {_name_freq(freq)} CALL"
+            name = f"U{i} CALL"
         else:
             name = f"U{i} {_name_freq(freq)}"
         channels.append(

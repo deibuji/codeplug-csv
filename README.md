@@ -87,7 +87,7 @@ Eight additional zones are included with every codeplug:
 | ISS | 7ch | Doppler-shifted downlinks + cross-band repeater |
 | MARINE VHF | 22ch | Simplex-only channels, TX prohibited |
 
-All DV simplex channels use CC1, TS1 and TG9 (Local). The 2m DV set excludes channels designated for internet gateways, slow Morse, FM calling, GB2RS and rally talk-in. V16 (145.200) is included but is shared with the ISS Earth-to-Space uplink. The UHF DV zone also includes DV copies of U272–U286; DH3 remains the dedicated DMR calling channel.
+Channel names show frequencies to 4 decimal places; the CSV Receive/Transmit columns use 5. All DV simplex channels use CC1, TS1 and TG9 (Local). The 2m DV set excludes channels designated for internet gateways, slow Morse, FM calling, GB2RS and rally talk-in. V16 (145.200) is included but is shared with the ISS Earth-to-Space uplink. The UHF DV zone also includes DV copies of U272–U286; DH3 remains the dedicated DMR calling channel.
 
 ### Zone labels
 

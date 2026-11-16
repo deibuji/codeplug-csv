@@ -97,7 +97,7 @@ class TestVhfFmSimplex:
     def test_calling_channel_name(self):
         zone = vhf_fm_simplex_zone()
         # V40 (145.500 MHz) is index 40-16=24
-        assert zone.channels[24].name == "V40 145.5 CALL"
+        assert zone.channels[24].name == "V40 CALL"
 
     def test_simplex(self):
         zone = vhf_fm_simplex_zone()
@@ -141,7 +141,7 @@ class TestUhfFmSimplex:
     def test_calling_channel_name(self):
         zone = uhf_fm_simplex_zone()
         # U280 (433.500 MHz) is index 4 in the 25 kHz channel list
-        assert zone.channels[4].name == "U280 433.5 CALL"
+        assert zone.channels[4].name == "U280 CALL"
 
     def test_simplex(self):
         zone = uhf_fm_simplex_zone()
@@ -275,14 +275,14 @@ class TestUhfDvSimplex:
         zone = uhf_dv_simplex_zone()
         copies = zone.channels[8:]
         assert [ch.name for ch in copies] == [
-            "U272 DV 433.4",
-            "U274 DV 433.425",
-            "U276 DV 433.45",
-            "U278 DV 433.475",
-            "U280 DV 433.5",
-            "U282 DV 433.525",
-            "U284 DV 433.55",
-            "U286 DV 433.575",
+            "U272 DV 433.4000",
+            "U274 DV 433.4250",
+            "U276 DV 433.4500",
+            "U278 DV 433.4750",
+            "U280 DV 433.5000",
+            "U282 DV 433.5250",
+            "U284 DV 433.5500",
+            "U286 DV 433.5750",
         ]
         assert copies[-1].rx_freq == "433.57500"
 
@@ -502,3 +502,11 @@ class TestGetStaticZones:
             "ISS",
             "MARINE VHF",
         ]
+
+    def test_frequency_names_use_four_decimals(self):
+        for zone in get_static_zones():
+            for channel in zone.channels:
+                for token in channel.name.split():
+                    if "." not in token or not token[0].isdigit():
+                        continue
+                    assert len(token.split(".")[1]) == 4, channel.name
