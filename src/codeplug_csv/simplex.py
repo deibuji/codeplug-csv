@@ -15,6 +15,55 @@ def _name_freq(freq: float) -> str:
     return f"{freq:.4f}".rstrip("0").rstrip(".")
 
 
+# ---------- Simplex channel plans ----------
+
+# RSGB 2m FM/DV simplex channels are V16-V45 (145.200-145.5625 MHz).
+# V46/V47 are low-power/adhoc repeater outputs, not simplex channels.
+VHF_FM_SIMPLEX_CHANNELS: tuple[int, ...] = tuple(range(16, 46))
+
+# RSGB 70cm FM/DV simplex channels are U272-U286 at 25 kHz spacing.
+UHF_FM_SIMPLEX_CHANNELS: tuple[int, ...] = tuple(range(272, 287, 2))
+
+# V16-V45 are usable for DV simplex, but these channels are designated for
+# other purposes: internet gateways (V17-V19, V21, V23, V25, V27), slow Morse
+# (V20), FM calling (V40), GB2RS news (V42), and rally/exhibition talk-in (V44).
+VHF_DV_SIMPLEX_CHANNELS: tuple[int, ...] = (
+    16,
+    22,
+    24,
+    26,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    41,
+    43,
+    45,
+)
+
+
+def _dv_simplex_channel(name: str, freq: float) -> AnytoneChannel:
+    """Build a UK-standard DMR simplex channel (CC1, TS1, TG9)."""
+    return AnytoneChannel(
+        name=name,
+        rx_freq=_mhz_str(freq),
+        tx_freq=_mhz_str(freq),
+        channel_type="D-Digital",
+        bandwidth="12.5K",
+        color_code=1,
+        slot=1,
+        contact="Local",
+    )
+
+
 # ---------- Hotspot ----------
 
 
@@ -73,12 +122,15 @@ def hotspot_zone() -> AnytoneZone:
 
 
 def vhf_fm_simplex_zone() -> AnytoneZone:
-    """V16-V46: 145.200-145.575 MHz, 12.5K FM. V40 is the calling channel."""
+    """V16-V45: 145.200-145.5625 MHz, 12.5K FM. V40 is the calling channel."""
     channels = []
-    for i in range(16, 47):
+    for i in VHF_FM_SIMPLEX_CHANNELS:
         freq = 145.200 + (i - 16) * 0.0125
         freq_str = _mhz_str(freq)
-        name = f"V{i} {_name_freq(freq)} CALL" if i == 40 else f"V{i} {_name_freq(freq)}"
+        if i == 40:
+            name = f"V{i} {_name_freq(freq)} CALL"
+        else:
+            name = f"V{i} {_name_freq(freq)}"
         channels.append(
             AnytoneChannel(
                 name=name,
@@ -95,12 +147,15 @@ def vhf_fm_simplex_zone() -> AnytoneZone:
 
 
 def uhf_fm_simplex_zone() -> AnytoneZone:
-    """U272-U288: 433.400-433.600 MHz, 12.5K FM. U280 is the calling channel."""
+    """U272-U286: 433.400-433.575 MHz, 12.5K FM. U280 is the calling channel."""
     channels = []
-    for i in range(272, 289):
+    for i in UHF_FM_SIMPLEX_CHANNELS:
         freq = 433.400 + (i - 272) * 0.0125
         freq_str = _mhz_str(freq)
-        name = f"U{i} {_name_freq(freq)} CALL" if i == 280 else f"U{i} {_name_freq(freq)}"
+        if i == 280:
+            name = f"U{i} {_name_freq(freq)} CALL"
+        else:
+            name = f"U{i} {_name_freq(freq)}"
         channels.append(
             AnytoneChannel(
                 name=name,
@@ -117,19 +172,12 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
 
 
 def vhf_dv_simplex_zone() -> AnytoneZone:
-    """Single channel: 144.6125 MHz, DMR CC1 TS1."""
-    freq_str = _mhz_str(144.6125)
-    ch = AnytoneChannel(
-        name="2M DV CALL",
-        rx_freq=freq_str,
-        tx_freq=freq_str,
-        channel_type="D-Digital",
-        bandwidth="12.5K",
-        color_code=1,
-        slot=1,
-        contact="Local",
-    )
-    return AnytoneZone(name="VHF DV SIMPLEX", channels=[ch])
+    """UK DV calling plus the usable 2m FM/DV simplex channels."""
+    channels = [_dv_simplex_channel("2M DV CALL", 144.6125)]
+    for i in VHF_DV_SIMPLEX_CHANNELS:
+        freq = 145.200 + (i - 16) * 0.0125
+        channels.append(_dv_simplex_channel(f"V{i} DV {_name_freq(freq)}", freq))
+    return AnytoneZone(name="VHF DV SIMPLEX", channels=channels)
 
 
 # ---------- UHF DV Simplex ----------
@@ -140,20 +188,8 @@ def uhf_dv_simplex_zone() -> AnytoneZone:
     channels = []
     for i in range(1, 9):
         freq = 438.5875 + (i - 1) * 0.0125
-        freq_str = _mhz_str(freq)
         name = f"DH{i} CALL" if i == 3 else f"DH{i}"
-        channels.append(
-            AnytoneChannel(
-                name=name,
-                rx_freq=freq_str,
-                tx_freq=freq_str,
-                channel_type="D-Digital",
-                bandwidth="12.5K",
-                color_code=1,
-                slot=1,
-                contact="Local",
-            )
-        )
+        channels.append(_dv_simplex_channel(name, freq))
     return AnytoneZone(name="UHF DV SIMPLEX", channels=channels)
 
 

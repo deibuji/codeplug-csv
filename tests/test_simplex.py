@@ -84,7 +84,7 @@ class TestVhfFmSimplex:
 
     def test_channel_count(self):
         zone = vhf_fm_simplex_zone()
-        assert len(zone.channels) == 31
+        assert len(zone.channels) == 30
 
     def test_first_channel_freq(self):
         zone = vhf_fm_simplex_zone()
@@ -92,7 +92,7 @@ class TestVhfFmSimplex:
 
     def test_last_channel_freq(self):
         zone = vhf_fm_simplex_zone()
-        assert zone.channels[-1].rx_freq == "145.57500"
+        assert zone.channels[-1].rx_freq == "145.56250"
 
     def test_calling_channel_name(self):
         zone = vhf_fm_simplex_zone()
@@ -114,6 +114,12 @@ class TestVhfFmSimplex:
         for ch in zone.channels:
             assert len(ch.name) <= 16
 
+    def test_excludes_adhoc_repeater_outputs(self):
+        zone = vhf_fm_simplex_zone()
+        names = {ch.name for ch in zone.channels}
+        assert not any(name.startswith("V46 ") for name in names)
+        assert not any(name.startswith("V47 ") for name in names)
+
 
 class TestUhfFmSimplex:
     def test_zone_name(self):
@@ -122,7 +128,7 @@ class TestUhfFmSimplex:
 
     def test_channel_count(self):
         zone = uhf_fm_simplex_zone()
-        assert len(zone.channels) == 17
+        assert len(zone.channels) == 8
 
     def test_first_channel_freq(self):
         zone = uhf_fm_simplex_zone()
@@ -130,12 +136,12 @@ class TestUhfFmSimplex:
 
     def test_last_channel_freq(self):
         zone = uhf_fm_simplex_zone()
-        assert zone.channels[-1].rx_freq == "433.60000"
+        assert zone.channels[-1].rx_freq == "433.57500"
 
     def test_calling_channel_name(self):
         zone = uhf_fm_simplex_zone()
-        # U280 (433.500 MHz) is index 280-272=8
-        assert zone.channels[8].name == "U280 433.5 CALL"
+        # U280 (433.500 MHz) is index 4 in the 25 kHz channel list
+        assert zone.channels[4].name == "U280 433.5 CALL"
 
     def test_simplex(self):
         zone = uhf_fm_simplex_zone()
@@ -152,6 +158,11 @@ class TestUhfFmSimplex:
         for ch in zone.channels:
             assert len(ch.name) <= 16
 
+    def test_uses_25khz_channel_numbers(self):
+        zone = uhf_fm_simplex_zone()
+        numbers = [int(ch.name.split()[0][1:]) for ch in zone.channels]
+        assert numbers == [272, 274, 276, 278, 280, 282, 284, 286]
+
 
 class TestVhfDvSimplex:
     def test_zone_name(self):
@@ -160,7 +171,7 @@ class TestVhfDvSimplex:
 
     def test_channel_count(self):
         zone = vhf_dv_simplex_zone()
-        assert len(zone.channels) == 1
+        assert len(zone.channels) == 20
 
     def test_channel_name(self):
         zone = vhf_dv_simplex_zone()
@@ -170,26 +181,68 @@ class TestVhfDvSimplex:
         zone = vhf_dv_simplex_zone()
         assert zone.channels[0].rx_freq == "144.61250"
 
+    def test_last_channel_freq(self):
+        zone = vhf_dv_simplex_zone()
+        assert zone.channels[-1].name == "V45 DV 145.5625"
+        assert zone.channels[-1].rx_freq == "145.56250"
+
+    def test_usable_v_channels_are_present(self):
+        zone = vhf_dv_simplex_zone()
+        names = {ch.name for ch in zone.channels}
+        for v in (
+            16,
+            22,
+            24,
+            26,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            41,
+            43,
+            45,
+        ):
+            assert any(name.startswith(f"V{v} DV ") for name in names), v
+
+    def test_designated_non_simplex_channels_are_excluded(self):
+        zone = vhf_dv_simplex_zone()
+        names = {ch.name for ch in zone.channels}
+        for v in (17, 18, 19, 20, 21, 23, 25, 27, 40, 42, 44):
+            assert not any(name.startswith(f"V{v} DV ") for name in names), v
+
     def test_simplex(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.channels[0].rx_freq == zone.channels[0].tx_freq
+        for ch in zone.channels:
+            assert ch.rx_freq == ch.tx_freq
 
     def test_channel_type(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.channels[0].channel_type == "D-Digital"
+        for ch in zone.channels:
+            assert ch.channel_type == "D-Digital"
 
     def test_dmr_params(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.channels[0].color_code == 1
-        assert zone.channels[0].slot == 1
+        for ch in zone.channels:
+            assert ch.color_code == 1
+            assert ch.slot == 1
 
-    def test_name_length(self):
+    def test_name_lengths(self):
         zone = vhf_dv_simplex_zone()
-        assert len(zone.channels[0].name) <= 16
+        for ch in zone.channels:
+            assert len(ch.name) <= 16
 
-    def test_contact_local(self):
+    def test_all_contact_local(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.channels[0].contact == "Local"
+        for ch in zone.channels:
+            assert ch.contact == "Local"
 
 
 class TestUhfDvSimplex:
@@ -410,7 +463,7 @@ class TestGetStaticZones:
     def test_total_channel_count(self):
         zones = get_static_zones()
         total = sum(len(z.channels) for z in zones)
-        assert total == 106
+        assert total == 115
 
     def test_zone_names(self):
         zones = get_static_zones()
