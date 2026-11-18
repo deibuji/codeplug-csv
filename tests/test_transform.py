@@ -105,12 +105,12 @@ class TestHelpers:
 
     def test_make_channel_name_keeps_callsign_suffix_and_band(self):
         name = _make_channel_name("GB3CD-L", "2m", "FM")
-        assert name == "GB3CD-L 2m FM"
+        assert name == "GB3CD-L VHF FM"
         assert len(name) <= MAX_NAME_LENGTH
 
     def test_make_channel_name_ts_suffix(self):
-        assert _make_channel_name("GB7AA", "70cm", "TS1") == "GB7AA 70cm TS1"
-        assert _make_channel_name("GB7AA", "70cm", "TS2") == "GB7AA 70cm TS2"
+        assert _make_channel_name("GB7AA", "70cm", "TS1") == "GB7AA UHF TS1"
+        assert _make_channel_name("GB7AA", "70cm", "TS2") == "GB7AA UHF TS2"
 
     def test_make_channel_name_reserves_suffix_when_truncating(self):
         name = _make_channel_name("GB3ABCDEFGHIJ-L", "70cm", "TS1")
@@ -120,13 +120,13 @@ class TestHelpers:
     def test_ensure_unique_channel_names_renames_collisions(self):
         channels = [
             AnytoneChannel(
-                name="GB3IM 70cm FM",
+                name="GB3IM UHF FM",
                 rx_freq="430.82500",
                 tx_freq="438.42500",
                 channel_type="A-Analog",
             ),
             AnytoneChannel(
-                name="GB3IM 70cm FM",
+                name="GB3IM UHF FM",
                 rx_freq="430.82500",
                 tx_freq="438.42500",
                 channel_type="A-Analog",
@@ -136,7 +136,7 @@ class TestHelpers:
         _ensure_unique_channel_names(channels)
 
         assert len({ch.name for ch in channels}) == 2
-        assert channels[0].name == "GB3IM 70cm FM"
+        assert channels[0].name == "GB3IM UHF FM"
         assert channels[1].name.endswith("~2")
 
     def test_extract_color_code_with_value(self):
@@ -174,22 +174,22 @@ class TestTransformRepeaters:
         gb3rd = [ch for ch in channels if "GB3RD" in ch.name]
         assert len(gb3rd) == 3
         names = {ch.name for ch in gb3rd}
-        assert "GB3RD 70cm FM" in names
-        assert "GB3RD 70cm TS1" in names
-        assert "GB3RD 70cm TS2" in names
+        assert "GB3RD UHF FM" in names
+        assert "GB3RD UHF TS1" in names
+        assert "GB3RD UHF TS2" in names
 
     def test_dmr_color_code(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb7aa_ts1 = next(ch for ch in channels if ch.name == "GB7AA 70cm TS1")
+        gb7aa_ts1 = next(ch for ch in channels if ch.name == "GB7AA UHF TS1")
         assert gb7aa_ts1.color_code == 1
-        gb7av_ts1 = next(ch for ch in channels if ch.name == "GB7AV 70cm TS1")
+        gb7av_ts1 = next(ch for ch in channels if ch.name == "GB7AV UHF TS1")
         assert gb7av_ts1.color_code == 3
 
     def test_bare_m_default_color_code(self, sample_repeaters):
         filtered = filter_repeaters(sample_repeaters)
         channels = transform_repeaters(filtered)
-        gb7ld_ts1 = next(ch for ch in channels if ch.name == "GB7LD 70cm TS1")
+        gb7ld_ts1 = next(ch for ch in channels if ch.name == "GB7LD UHF TS1")
         assert gb7ld_ts1.color_code == 1
 
     def test_analog_ctcss(self, sample_repeaters):
@@ -224,9 +224,9 @@ class TestTransformRepeaters:
         channels = transform_repeaters(filtered)
         gb7aa = [ch for ch in channels if "GB7AA" in ch.name]
         assert len(gb7aa) == 2
-        assert gb7aa[0].name == "GB7AA 70cm TS1"
+        assert gb7aa[0].name == "GB7AA UHF TS1"
         assert gb7aa[0].slot == 1
-        assert gb7aa[1].name == "GB7AA 70cm TS2"
+        assert gb7aa[1].name == "GB7AA UHF TS2"
         assert gb7aa[1].slot == 2
 
     def test_same_callsign_on_both_bands_gets_unique_names(self):
@@ -253,10 +253,10 @@ class TestTransformRepeaters:
         names = [ch.name for ch in channels]
 
         assert names == [
-            "GB7HQ 2m TS1",
-            "GB7HQ 2m TS2",
-            "GB7HQ 70cm TS1",
-            "GB7HQ 70cm TS2",
+            "GB7HQ VHF TS1",
+            "GB7HQ VHF TS2",
+            "GB7HQ UHF TS1",
+            "GB7HQ UHF TS2",
         ]
         assert len(names) == len(set(names))
 
@@ -281,8 +281,43 @@ class TestTransformRepeaters:
         channels = transform_repeaters(repeaters)
         names = [ch.name for ch in channels]
 
-        assert names == ["GB3IM-C 70cm FM", "GB3IM-R 70cm FM"]
+        assert names == ["GB3IM-C UHF FM", "GB3IM-R UHF FM"]
         assert len(names) == len(set(names))
+
+    def test_channels_are_ordered_by_callsign_not_api_order(self):
+        """The RSGB API returns records in arbitrary order; zones must still
+        list their channels in ascending callsign order."""
+        repeaters = [
+            _repeater(callsign)
+            for callsign in ("GB7ZZ", "GB7AA", "GB7MM", "GB7BB")
+        ]
+
+        names = [ch.name for ch in transform_repeaters(repeaters)]
+
+        assert names == [
+            "GB7AA VHF FM",
+            "GB7BB VHF FM",
+            "GB7MM VHF FM",
+            "GB7ZZ VHF FM",
+        ]
+
+    def test_callsign_order_keeps_multimode_channels_together(self):
+        """Sorting repeaters, not channel names, keeps FM/TS1/TS2 adjacent."""
+        repeaters = [
+            _repeater("GB7ZZ", mode_codes=["A", "M:1"]),
+            _repeater("GB7AA", mode_codes=["A", "M:1"]),
+        ]
+
+        names = [ch.name for ch in transform_repeaters(repeaters)]
+
+        assert names == [
+            "GB7AA VHF FM",
+            "GB7AA VHF TS1",
+            "GB7AA VHF TS2",
+            "GB7ZZ VHF FM",
+            "GB7ZZ VHF TS1",
+            "GB7ZZ VHF TS2",
+        ]
 
     def test_unknown_locator_uses_other_region(self):
         channels = transform_repeaters(

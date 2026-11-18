@@ -14,6 +14,7 @@ from .load import write_channels, write_talkgroups, write_zones
 from .models import Repeater, TalkGroup
 from .qdmr import PLACEHOLDER_CALLSIGN, PLACEHOLDER_DMR_ID, write_qdmr
 from .simplex import get_static_zones
+from .zones import drop_empty_zones
 from .transform import filter_repeaters, transform_repeaters
 from .zones import assign_zones
 
@@ -207,7 +208,7 @@ async def _run(args: argparse.Namespace) -> None:
     channels = transform_repeaters(filtered, power=args.power)
     repeater_zones = assign_zones(channels)
     static_zones = get_static_zones()
-    all_zones = static_zones + repeater_zones
+    all_zones = drop_empty_zones(static_zones + repeater_zones)
 
     # Derive channel list from zone order so channel numbers align with zones
     all_channels = [ch for zone in all_zones for ch in zone.channels]

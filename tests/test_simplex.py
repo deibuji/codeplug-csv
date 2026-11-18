@@ -80,7 +80,7 @@ class TestHotspot:
 class TestVhfFmSimplex:
     def test_zone_name(self):
         zone = vhf_fm_simplex_zone()
-        assert zone.name == "VHF FM SIMPLEX"
+        assert zone.name == "VHF FM SMPLX"
 
     def test_channel_count(self):
         zone = vhf_fm_simplex_zone()
@@ -124,7 +124,7 @@ class TestVhfFmSimplex:
 class TestUhfFmSimplex:
     def test_zone_name(self):
         zone = uhf_fm_simplex_zone()
-        assert zone.name == "UHF FM SIMPLEX"
+        assert zone.name == "UHF FM SMPLX"
 
     def test_channel_count(self):
         zone = uhf_fm_simplex_zone()
@@ -167,7 +167,7 @@ class TestUhfFmSimplex:
 class TestVhfDvSimplex:
     def test_zone_name(self):
         zone = vhf_dv_simplex_zone()
-        assert zone.name == "VHF DV SIMPLEX"
+        assert zone.name == "VHF DV SMPLX"
 
     def test_channel_count(self):
         zone = vhf_dv_simplex_zone()
@@ -248,7 +248,7 @@ class TestVhfDvSimplex:
 class TestUhfDvSimplex:
     def test_zone_name(self):
         zone = uhf_dv_simplex_zone()
-        assert zone.name == "UHF DV SIMPLEX"
+        assert zone.name == "UHF DV SMPLX"
 
     def test_channel_count(self):
         zone = uhf_dv_simplex_zone()
@@ -504,10 +504,10 @@ class TestGetStaticZones:
         names = [z.name for z in zones]
         assert names == [
             "HOTSPOT",
-            "VHF FM SIMPLEX",
-            "UHF FM SIMPLEX",
-            "VHF DV SIMPLEX",
-            "UHF DV SIMPLEX",
+            "VHF FM SMPLX",
+            "UHF FM SMPLX",
+            "VHF DV SMPLX",
+            "UHF DV SMPLX",
             "PMR446",
             "ISS",
             "MARINE VHF",

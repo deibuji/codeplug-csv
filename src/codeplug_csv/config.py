@@ -18,6 +18,14 @@ API_BASE_URL = os.environ.get(
 )
 BANDS = ("2m", "70cm")
 
+# User-facing band labels.  The API band ids above stay "2m"/"70cm" because
+# they are part of the RSGB endpoint path (``GET /band/2m``); only the names
+# shown on the radio use the VHF/UHF spelling.
+BAND_LABELS: dict[str, str] = {"2m": "VHF", "70cm": "UHF"}
+
+# Sort order for bands, so zones stay in ascending frequency order.
+_BAND_RANK: dict[str, int] = {band: i for i, band in enumerate(BANDS)}
+
 # Repeater types to exclude (beacons, TV, packet beacons, digi beacons)
 EXCLUDED_TYPES = {"BN", "TV", "PB", "DB"}
 
@@ -31,14 +39,39 @@ MAX_NAME_LENGTH = 16
 MAX_ZONE_CHANNELS = 250
 
 # User-facing mode labels used in zone names.  The internal mode values stay
-# ANL/DMR so they remain stable for grouping and tests.
-MODE_LABELS: dict[str, str] = {"ANL": "FM", "DMR": "DMR"}
+# ANL/DMR so they remain stable for grouping and tests.  "DV" is the radio's
+# spelling for digital voice, which on these repeaters means DMR.
+MODE_LABELS: dict[str, str] = {"ANL": "FM", "DMR": "DV"}
 
 # Gateway repeaters are grouped separately and labelled by their gateway type.
+# These keep their D/A prefix (DG/AG) because it encodes analog vs digital,
+# which the FM/DV mode label does not.
 GATEWAY_LABELS: dict[str, str] = {"ANL": "AG", "DMR": "DG"}
 
 # DMR channels are emitted once per time slot.
 DMR_SLOTS: tuple[tuple[int, str], ...] = ((1, "TS1"), (2, "TS2"))
+
+
+def band_label(band: str) -> str:
+    """Return the user-facing band label for *band*.
+
+    Accepts the API spelling in any case (``"2M"``, ``"70cm"``).  Unknown
+    bands fall back to an uppercase spelling so a new API band still yields a
+    usable name instead of an empty one.
+    """
+    key = band.lower().replace(" ", "")
+    return BAND_LABELS.get(key, key.upper())
+
+
+def band_rank(band: str) -> int:
+    """Return a sort key that keeps bands in ascending frequency order.
+
+    Sorting zone names as text would put UHF before VHF once the labels are
+    VHF/UHF, which renumbers every channel in Channel.CSV.  Unknown bands sort
+    after the known ones rather than interleaving with them.
+    """
+    key = band.lower().replace(" ", "")
+    return _BAND_RANK.get(key, len(BANDS))
 
 
 def fit_name(text: str, suffix: str = "") -> str:

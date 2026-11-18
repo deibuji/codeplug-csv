@@ -7,7 +7,7 @@ Covers 2m and 70cm bands, both analog (FM) and digital (DMR) repeaters.
 ## Output files
 
 - **Channel.CSV** - All channels with the full column set the Anytone CPS expects (analog + digital)
-- **Zone.CSV** - Repeater channels grouped by UK region, band, mode, and type (e.g. "NE 2m FM", "LONDON 70cm DMR", "NE 2m AG"), plus static simplex/utility zones
+- **Zone.CSV** - Repeater channels grouped by UK region, band, mode, and type (e.g. "NE VHF FM", "LONDON UHF DV", "NE VHF AG"), plus static simplex/utility zones
 - **TalkGroups.CSV** - UK-relevant DMR talkgroups fetched from the BrandMeister API
 - **user.csv** - Full worldwide DMR contact list downloaded from [RadioID](https://www.radioid.net/) (importable as a Digital Contact List in the CPS)
 - **codeplug.yaml** - The same codeplug as a device-independent [qDMR](https://dm3mat.de/software/qdmr)/[dmrconf](https://github.com/hmatuschek/qdmr) YAML file (see below)
@@ -97,11 +97,11 @@ Newer releases log a deprecation hint per channel; see `DIGITAL_KEY` /
 ## How it works
 
 1. **Extract** - Fetches repeater data from `GET /band/2m` and `GET /band/70cm`
-2. **Transform** - Filters to operational analog/DMR repeaters, removes exact duplicate API rows, swaps TX/RX frequencies to the radio's perspective, and generates unique channel names (max 16 chars). Names keep the API callsign suffix (e.g. `-L`, `-C`) and include the band, so the same callsign on 2m and 70cm stays distinct. DMR color codes are extracted from the API's `modeCodes` field.
-3. **Zone** - Groups repeater channels by UK region + band + mode + type. Repeaters use `FM`/`DMR`; gateways use `AG`/`DG`. Zones above the 250-channel Anytone limit are split into numbered zones. Static simplex/utility zones are appended.
-4. **Load** - Writes the CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous, and every zone member resolves to exactly one channel name. The qDMR writer reuses the same channel and zone names, links channels to zones by generated ids, and verifies that every reference resolves before writing `codeplug.yaml`.
+2. **Transform** - Filters to operational analog/DMR repeaters, removes exact duplicate API rows, swaps TX/RX frequencies to the radio's perspective, and generates unique channel names (max 16 chars) ordered by callsign. Names keep the API callsign suffix (e.g. `-L`, `-C`) and include the band as `VHF`/`UHF`, so the same callsign on 2m and 70cm stays distinct. DMR color codes are extracted from the API's `modeCodes` field.
+3. **Zone** - Groups repeater channels by UK region + band + mode + type. Repeaters use `FM`/`DV`; gateways use `AG`/`DG`. Zones above the 250-channel Anytone limit are split into numbered zones. Static simplex/utility zones are appended.
+4. **Load** - Writes the CSV files. Channel numbers are derived from zone order so each zone's channels are contiguous and ordered by callsign, and every zone member resolves to exactly one channel name. The qDMR writer reuses the same channel and zone names, links channels to zones by generated ids, and verifies that every reference resolves before writing `codeplug.yaml`.
 
-Repeaters with both analog and DMR modes produce three channels (one FM, two DMR — TS1 and TS2).
+Repeaters with both analog and digital modes produce three channels (one FM, two DV — TS1 and TS2).
 
 ### DMR color codes
 
@@ -114,10 +114,10 @@ Eight additional zones are included with every codeplug:
 | Zone | Channels | Notes |
 |------|----------|-------|
 | HOTSPOT | 4ch | DMR hotspot on 434.000/438.800 MHz, simplex + repeater modes |
-| VHF FM SIMPLEX | V16–V45 (30ch) | 145.200–145.5625 MHz, V40 = calling channel |
-| UHF FM SIMPLEX | U272–U286 (8ch) | 433.400–433.575 MHz at 25 kHz spacing, U280 = calling channel |
-| VHF DV SIMPLEX | DV 144.6125 CL + 19 V-channels (20ch) | 144.6125 MHz calling + usable 2m FM/DV simplex channels, DMR CC1 TS1 |
-| UHF DV SIMPLEX | DH1–DH8 + U272–U286 (16ch) | 438.5875–438.6750 MHz + 433.400–433.575 MHz, DH3 = calling channel |
+| VHF FM SMPLX | V16–V45 (30ch) | 145.200–145.5625 MHz, V40 = calling channel |
+| UHF FM SMPLX | U272–U286 (8ch) | 433.400–433.575 MHz at 25 kHz spacing, U280 = calling channel |
+| VHF DV SMPLX | DV 144.6125 CL + 19 V-channels (20ch) | 144.6125 MHz calling + usable 2m FM/DV simplex channels, DMR CC1 TS1 |
+| UHF DV SMPLX | DH1–DH8 + U272–U286 (16ch) | 438.5875–438.6750 MHz + 433.400–433.575 MHz, DH3 = calling channel |
 | PMR446 | PMR 1–16 (16ch) | 446.00625–446.19375 MHz, TX prohibited |
 | ISS | 7ch | Doppler-shifted downlinks + cross-band repeater |
 | MARINE VHF | 22ch | Simplex-only channels, TX prohibited |
@@ -126,7 +126,7 @@ Channel names show frequencies to 4 decimal places; the CSV Receive/Transmit col
 
 ### Zone labels
 
-Dynamic zones are named `{region} {band} {mode}`. Repeater zones use `FM` or `DMR`; gateway zones use `AG` (analog gateway) or `DG` (digital gateway). Examples: `SW 2m FM`, `SCOT 70cm DMR`, `MIDL 2m AG`.
+Dynamic zones are named `{region} {band} {mode}`, where the band is `VHF` or `UHF`. Repeater zones use `FM` or `DV`; gateway zones use `AG` (analog gateway) or `DG` (digital gateway). Examples: `SW VHF FM`, `SCOT UHF DV`, `MIDL VHF AG`. Zones sort by region (alphabetically, with `OTHER` last for unmapped locators), then VHF before UHF, then mode. Within a zone, channels are ordered by callsign (the RSGB API returns records in an arbitrary order), with each repeater's channels kept adjacent.
 
 In `Zone.CSV`, `A Channel` defaults to the first member and `B Channel` to the second (or the first member for a single-channel zone).
 

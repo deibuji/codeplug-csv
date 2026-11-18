@@ -155,6 +155,20 @@ class TestWriteZones:
             reader = csv.DictReader(f)
             assert reader.fieldnames == ZONE_COLUMNS
 
+    def test_empty_zone_is_not_written(self, sample_channels, output_dir):
+        zones = [
+            AnytoneZone(name="OTHER VHF FM", channels=[]),
+            AnytoneZone(name="NE VHF FM", channels=sample_channels[:1]),
+        ]
+
+        write_zones(zones, output_dir)
+
+        with open(output_dir / "Zone.CSV") as f:
+            rows = list(csv.DictReader(f))
+        assert [r["Zone Name"] for r in rows] == ["NE VHF FM"]
+        assert rows[0]["No."] == "1"
+        assert rows[0]["Zone Channel Member"]
+
     def test_pipe_delimited_members(self, sample_channels, output_dir):
         zones = [AnytoneZone(name="test", channels=sample_channels)]
         write_zones(zones, output_dir)

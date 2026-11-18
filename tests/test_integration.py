@@ -247,8 +247,8 @@ class TestEndToEnd:
         static_names = {z.name for z in get_static_zones()}
         assert zone_names >= static_names, f"Missing static zones in {zone_names}"
 
-        # The fixture has a LONDON 70cm DMR repeater (GB7AA)
-        assert "LONDON 70cm DMR" in zone_names
+        # The fixture has a LONDON UHF DV repeater (GB7AA)
+        assert "LONDON UHF DV" in zone_names
         gb7aa_zones = [r for r in rows if "GB7AA" in r["Zone Channel Member"]]
         assert gb7aa_zones, "No zone contains GB7AA"
 

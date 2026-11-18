@@ -23,6 +23,7 @@ import yaml
 
 from .config import MAX_NAME_LENGTH
 from .models import AnytoneChannel, AnytoneZone, TalkGroup
+from .zones import drop_empty_zones
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +307,7 @@ def build_codeplug(
     callsign: str = PLACEHOLDER_CALLSIGN,
 ) -> dict[str, Any]:
     """Assemble a device independent qDMR codeplug as a plain dict."""
+    zones = drop_empty_zones(zones)
     names = [channel.name for channel in channels]
     if len(set(names)) != len(names):
         duplicates = sorted({name for name in names if names.count(name) > 1})

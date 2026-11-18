@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from codeplug_csv.config import MAX_NAME_LENGTH
-from codeplug_csv.models import AnytoneChannel
+from codeplug_csv.models import AnytoneChannel, AnytoneZone
 from codeplug_csv.regions import UK_REGIONS, UNKNOWN_REGION
-from codeplug_csv.zones import assign_zones
+from codeplug_csv.zones import assign_zones, drop_empty_zones
 
 
 def _make_channel(
@@ -27,6 +27,33 @@ def _make_channel(
     )
 
 
+class TestDropEmptyZones:
+    def test_removes_channel_less_zone(self):
+        zones = [
+            AnytoneZone(name="NE VHF FM", channels=[_make_channel("CH1", "2m", "ANL")]),
+            AnytoneZone(name=f"{UNKNOWN_REGION} VHF FM", channels=[]),
+        ]
+
+        assert [z.name for z in drop_empty_zones(zones)] == ["NE VHF FM"]
+
+    def test_keeps_remaining_zones_in_order(self):
+        zones = [
+            AnytoneZone(name="A", channels=[_make_channel("CH1", "2m", "ANL")]),
+            AnytoneZone(name="B", channels=[]),
+            AnytoneZone(name="C", channels=[_make_channel("CH2", "2m", "ANL")]),
+        ]
+
+        assert [z.name for z in drop_empty_zones(zones)] == ["A", "C"]
+
+    def test_warns_when_dropping(self, caplog):
+        zones = [AnytoneZone(name="EMPTY", channels=[])]
+
+        with caplog.at_level("WARNING"):
+            assert drop_empty_zones(zones) == []
+
+        assert "Dropping empty zone 'EMPTY'" in caplog.text
+
+
 class TestAssignZones:
     def test_groups_by_region_band_mode_type(self):
         channels = [
@@ -36,9 +63,9 @@ class TestAssignZones:
         ]
         zones = assign_zones(channels)
         zone_names = [z.name for z in zones]
-        assert "NE 2m FM" in zone_names
-        assert "SW 70cm FM" in zone_names
-        assert "SW 70cm DMR" in zone_names
+        assert "NE VHF FM" in zone_names
+        assert "SW UHF FM" in zone_names
+        assert "SW UHF DV" in zone_names
         assert len(zones) == 3
 
     def test_separates_bands_within_same_region_and_mode(self):
@@ -48,7 +75,7 @@ class TestAssignZones:
         ]
         zones = assign_zones(channels)
 
-        assert [z.name for z in zones] == ["NE 2m FM", "NE 70cm FM"]
+        assert [z.name for z in zones] == ["NE VHF FM", "NE UHF FM"]
         for zone in zones:
             assert len({ch.band for ch in zone.channels}) == 1
 
@@ -59,8 +86,8 @@ class TestAssignZones:
         ]
         zones = assign_zones(channels)
         zone_names = [z.name for z in zones]
-        assert "NE 2m FM" in zone_names
-        assert "NE 2m AG" in zone_names
+        assert "NE VHF FM" in zone_names
+        assert "NE VHF AG" in zone_names
 
     def test_digital_gateway_label(self):
         channels = [
@@ -68,7 +95,42 @@ class TestAssignZones:
         ]
         zones = assign_zones(channels)
 
-        assert [z.name for z in zones] == ["NE 70cm DG"]
+        assert [z.name for z in zones] == ["NE UHF DG"]
+
+    def test_digital_repeater_label_is_dv(self):
+        channels = [
+            _make_channel("CH1 DMR", "70cm", "DMR", region="NE", rpt_type="RPT"),
+        ]
+        zones = assign_zones(channels)
+
+        assert [z.name for z in zones] == ["NE UHF DV"]
+
+    def test_vhf_zones_sort_before_uhf(self):
+        """Zone order drives channel numbering, so it must not follow the
+        text order of the labels (which would put UHF first)."""
+        channels = [
+            _make_channel("CH1 FM", "70cm", "ANL", region="NE", rpt_type="RPT"),
+            _make_channel("CH2 FM", "2m", "ANL", region="NE", rpt_type="RPT"),
+        ]
+        zones = assign_zones(channels)
+
+        assert [z.name for z in zones] == ["NE VHF FM", "NE UHF FM"]
+
+    def test_other_region_zones_sort_last(self):
+        """Unmapped locators are a catch-all, so they must not interleave
+        with real regions just because "OTHER" starts with O."""
+        channels = [
+            _make_channel("CH1", "2m", "ANL", region=UNKNOWN_REGION),
+            _make_channel("CH2", "2m", "ANL", region="WAL"),
+            _make_channel("CH3", "2m", "ANL", region="E.ANG"),
+        ]
+        zones = assign_zones(channels)
+
+        assert [z.name for z in zones] == [
+            "E.ANG VHF FM",
+            "WAL VHF FM",
+            f"{UNKNOWN_REGION} VHF FM",
+        ]
 
     def test_zone_names_max_length(self):
         channels = [
@@ -85,10 +147,10 @@ class TestAssignZones:
             for i in range(300)
         ]
         zones = assign_zones(channels)
-        se_zones = [z for z in zones if z.name.startswith("SE 2m FM")]
+        se_zones = [z for z in zones if z.name.startswith("SE VHF FM")]
         assert len(se_zones) == 2
-        assert se_zones[0].name == "SE 2m FM 1"
-        assert se_zones[1].name == "SE 2m FM 2"
+        assert se_zones[0].name == "SE VHF FM 1"
+        assert se_zones[1].name == "SE VHF FM 2"
         assert len(se_zones[0].channels) == 250
         assert len(se_zones[1].channels) == 50
 

@@ -88,3 +88,45 @@ def test_fit_name_truncates_text_not_suffix():
 def test_mode_and_gateway_labels_cover_internal_modes():
     assert set(config.MODE_LABELS) == {"ANL", "DMR"}
     assert set(config.GATEWAY_LABELS) == {"ANL", "DMR"}
+
+
+def test_repeater_modes_use_radio_spelling():
+    """Digital repeaters are labelled DV, the spelling the radio shows."""
+    assert config.MODE_LABELS["ANL"] == "FM"
+    assert config.MODE_LABELS["DMR"] == "DV"
+
+
+def test_gateway_labels_keep_analog_digital_prefix():
+    """AG/DG still encode analog vs digital, which FM/DV does not."""
+    assert config.GATEWAY_LABELS["ANL"] == "AG"
+    assert config.GATEWAY_LABELS["DMR"] == "DG"
+
+
+@pytest.mark.parametrize(
+    ("band", "expected"),
+    [
+        ("2m", "VHF"),
+        ("2M", "VHF"),
+        ("70cm", "UHF"),
+        ("70CM", "UHF"),
+        ("70 cm", "UHF"),
+    ],
+)
+def test_band_label_maps_api_bands(band, expected):
+    assert config.band_label(band) == expected
+
+
+def test_band_label_falls_back_for_unknown_band():
+    """A new API band must still produce a usable label."""
+    assert config.band_label("23cm") == "23CM"
+
+
+def test_band_rank_orders_ascending_frequency():
+    """VHF sorts before UHF so the radio's zone order stays stable."""
+    assert config.band_rank("2m") < config.band_rank("70cm")
+    assert config.band_rank("70cm") < config.band_rank("23cm")
+
+
+def test_api_band_ids_are_unchanged():
+    """Zone/channel labels changed; the RSGB endpoint path did not."""
+    assert config.BANDS == ("2m", "70cm")

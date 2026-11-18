@@ -79,7 +79,7 @@ def hotspot_zone() -> AnytoneZone:
     """DMR hotspot channels on UK-allocated frequencies 434.000 and 438.800 MHz."""
     channels = [
         AnytoneChannel(
-            name="HS 434 SIMPLEX",
+            name="HS 434 SMPLX",
             rx_freq=_mhz_str(434.000),
             tx_freq=_mhz_str(434.000),
             channel_type="D-Digital",
@@ -90,7 +90,7 @@ def hotspot_zone() -> AnytoneZone:
             power="Low",
         ),
         AnytoneChannel(
-            name="HS 438 SIMPLEX",
+            name="HS 438 SMPLX",
             rx_freq=_mhz_str(438.800),
             tx_freq=_mhz_str(438.800),
             channel_type="D-Digital",
@@ -145,7 +145,7 @@ def vhf_fm_simplex_zone() -> AnytoneZone:
                 bandwidth="12.5K",
             )
         )
-    return AnytoneZone(name="VHF FM SIMPLEX", channels=channels)
+    return AnytoneZone(name="VHF FM SMPLX", channels=channels)
 
 
 # ---------- UHF FM Simplex ----------
@@ -167,7 +167,7 @@ def uhf_fm_simplex_zone() -> AnytoneZone:
                 bandwidth="12.5K",
             )
         )
-    return AnytoneZone(name="UHF FM SIMPLEX", channels=channels)
+    return AnytoneZone(name="UHF FM SMPLX", channels=channels)
 
 
 # ---------- VHF DV Simplex ----------
@@ -179,7 +179,7 @@ def vhf_dv_simplex_zone() -> AnytoneZone:
     for i in VHF_DV_SIMPLEX_CHANNELS:
         freq = 145.200 + (i - 16) * 0.0125
         channels.append(_dv_simplex_channel(f"V{i} DV {_name_freq(freq)}", freq))
-    return AnytoneZone(name="VHF DV SIMPLEX", channels=channels)
+    return AnytoneZone(name="VHF DV SMPLX", channels=channels)
 
 
 # ---------- UHF DV Simplex ----------
@@ -201,7 +201,7 @@ def uhf_dv_simplex_zone() -> AnytoneZone:
     for i in UHF_DV_SIMPLEX_CHANNELS:
         freq = 433.400 + (i - 272) * 0.0125
         channels.append(_dv_simplex_channel(f"U{i} DV {_name_freq(freq)}", freq))
-    return AnytoneZone(name="UHF DV SIMPLEX", channels=channels)
+    return AnytoneZone(name="UHF DV SMPLX", channels=channels)
 
 
 # ---------- PMR446 ----------

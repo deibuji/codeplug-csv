@@ -248,6 +248,15 @@ class TestBuildCodeplug:
                 [analog_channel, twin], zones, talkgroups
             )
 
+    def test_empty_zone_is_not_written(self, channels, zones, talkgroups):
+        codeplug = build_codeplug(
+            channels,
+            [AnytoneZone(name="OTHER VHF FM", channels=[])] + list(zones),
+            talkgroups,
+        )
+
+        assert [z["name"] for z in codeplug["zones"]] == [z.name for z in zones]
+
     def test_missing_zone_membership_rejected(
         self, channels, analog_channel, talkgroups
     ):

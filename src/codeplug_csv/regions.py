@@ -79,6 +79,16 @@ UK_REGIONS: tuple[str, ...] = tuple(
 )
 
 
+def region_sort_key(region: str) -> tuple[bool, str]:
+    """Return a sort key that places ``UNKNOWN_REGION`` after all others.
+
+    Known regions stay in alphabetical code order; the catch-all ``OTHER``
+    bucket sorts last instead of landing in the middle of the alphabet, so
+    properly located repeaters always come first on the radio.
+    """
+    return (region == UNKNOWN_REGION, region)
+
+
 def locator_to_region(locator: str) -> str:
     """Return the UK region for a Maidenhead locator string.
 

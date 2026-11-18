@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from codeplug_csv.regions import UNKNOWN_REGION, locator_to_region
+from codeplug_csv.regions import UNKNOWN_REGION, locator_to_region, region_sort_key
 
 
 class TestLocatorToRegion:
@@ -118,3 +118,26 @@ class TestLocatorToRegion:
     def test_case_insensitive(self):
         assert locator_to_region("io94dr") == "NE"
         assert locator_to_region("io91wm") == "LONDON"
+
+
+class TestRegionSortKey:
+    def test_known_regions_sort_alphabetically(self):
+        regions = ["WAL", "NE", "E.ANG", "LONDON"]
+        assert sorted(regions, key=region_sort_key) == [
+            "E.ANG",
+            "LONDON",
+            "NE",
+            "WAL",
+        ]
+
+    def test_unknown_region_sorts_last(self):
+        regions = [UNKNOWN_REGION, "WAL", "E.ANG"]
+        assert sorted(regions, key=region_sort_key) == [
+            "E.ANG",
+            "WAL",
+            UNKNOWN_REGION,
+        ]
+
+    def test_unknown_region_is_last_even_against_late_letters(self):
+        """OTHER must not be ordered by its spelling."""
+        assert region_sort_key(UNKNOWN_REGION) > region_sort_key("WAL")

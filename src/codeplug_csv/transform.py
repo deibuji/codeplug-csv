@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from .config import DMR_SLOTS, EXCLUDED_TYPES, GATEWAY_TYPES, fit_name
+from .config import DMR_SLOTS, EXCLUDED_TYPES, GATEWAY_TYPES, band_label, fit_name
 from .models import AnytoneChannel, Repeater
 from .regions import UNKNOWN_REGION, locator_to_region
 
@@ -64,11 +64,12 @@ def _hz_to_mhz(hz: int) -> str:
 def _make_channel_name(callsign: str, band: str, suffix: str) -> str:
     """Build a channel name within MAX_NAME_LENGTH chars.
 
-    Format: '{callsign} {band} {suffix}'.  The band is required for global
-    uniqueness because the same callsign can appear on 2m and 70cm, and the
-    API callsign suffix (e.g. -C/-L/-R) is kept as a site discriminator.
+    Format: '{callsign} {band} {suffix}', where the band is the user-facing
+    label (VHF/UHF).  The band is required for global uniqueness because the
+    same callsign can appear on 2m and 70cm, and the API callsign suffix
+    (e.g. -C/-L/-R) is kept as a site discriminator.
     """
-    return fit_name(f"{callsign.strip()} {band}", f" {suffix}")
+    return fit_name(f"{callsign.strip()} {band_label(band)}", f" {suffix}")
 
 
 def _ensure_unique_channel_names(channels: list[AnytoneChannel]) -> None:
@@ -128,17 +129,32 @@ def _band_label(band: str) -> str:
     return band.lower().replace(" ", "")
 
 
+def _callsign_key(repeater: Repeater) -> str:
+    """Return the sort key used to order channels within a zone.
+
+    The RSGB API returns records in an arbitrary order, so sorting here keeps
+    each zone's channels in ascending callsign order.  Sorting the repeaters
+    (rather than the finished channel names) keeps a multimode repeater's FM
+    and TS1/TS2 channels adjacent.  Duplicate callsigns keep their incoming
+    order because ``sorted`` is stable.
+    """
+    return repeater.repeater.strip().upper()
+
+
 def transform_repeaters(
     repeaters: list[Repeater],
     power: str = "High",
 ) -> list[AnytoneChannel]:
     """Convert filtered Repeater list to AnytoneChannel list.
 
+    Channels are emitted in ascending callsign order, so every zone built by
+    :func:`codeplug_csv.zones.assign_zones` lists its members by callsign.
+
     Multimode repeaters (both A and M in modeCodes) produce three channels:
     one FM channel plus one DMR channel per time slot.
     """
     channels: list[AnytoneChannel] = []
-    for r in repeaters:
+    for r in sorted(repeaters, key=_callsign_key):
         has_analog = "A" in r.mode_codes
         has_dmr = any(mc == "M" or mc.startswith("M:") for mc in r.mode_codes)
         band = _band_label(r.band)

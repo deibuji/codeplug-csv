@@ -16,6 +16,7 @@ from .config import (
     ZONE_COLUMNS,
 )
 from .models import AnytoneChannel, AnytoneZone, TalkGroup
+from .zones import drop_empty_zones
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ def write_channels(channels: list[AnytoneChannel], output_dir: Path) -> Path:
 
 def write_zones(zones: list[AnytoneZone], output_dir: Path) -> Path:
     """Write Zone.CSV, rejecting ambiguous zone/member names."""
+    zones = drop_empty_zones(zones)
     zone_names = [zone.name for zone in zones]
     duplicate_zones = sorted(
         name for name, count in Counter(zone_names).items() if count > 1
@@ -101,13 +103,9 @@ def write_zones(zones: list[AnytoneZone], output_dir: Path) -> Path:
             raise ValueError(
                 f"Duplicate members in zone {zone.name!r}: {duplicates}"
             )
-        a_channel = zone.channels[0].name if zone.channels else ""
+        a_channel = zone.channels[0].name
         b_channel = (
-            zone.channels[1].name
-            if len(zone.channels) > 1
-            else zone.channels[0].name
-            if zone.channels
-            else ""
+            zone.channels[1].name if len(zone.channels) > 1 else a_channel
         )
         rows.append(
             {
