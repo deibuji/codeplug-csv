@@ -145,6 +145,16 @@ In `Zone.CSV`, `A Channel` defaults to the first member and `B Channel` to the s
 | `LONDON` | London |
 | `OTHER` | Unmapped or invalid Maidenhead locator |
 
+### `DV` means DMR
+
+Every codeplug this tool produces targets a DMR radio (the qDMR output is
+verified against the Anytone D878UV). Zone and channel names therefore label
+digital channels `DV`, and that always means DMR — there is no D-STAR, C4FM,
+P25 or dPMR content in this data, so the label never needs to distinguish
+between digital voice modes on the radio. Internally the mode is still stored
+as `DMR`, which is what the CPS `DMR MODE` column, the colour codes, time slots
+and DMR IDs all refer to.
+
 ### BrandMeister talkgroups
 
 Talkgroups are fetched from the [BrandMeister API](https://api.brandmeister.network/v2/talkgroup/) at runtime and filtered to a curated set of ~22 UK-relevant IDs (e.g. Local, UK Wide, Regional, TAC channels). Private call IDs (BM Parrot 9990, UK Parrot 234997) are not present in the API so they are added automatically as fallbacks. All DMR channels default to TG9 (Local).

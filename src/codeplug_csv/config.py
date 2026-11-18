@@ -39,8 +39,7 @@ MAX_NAME_LENGTH = 16
 MAX_ZONE_CHANNELS = 250
 
 # User-facing mode labels used in zone names.  The internal mode values stay
-# ANL/DMR so they remain stable for grouping and tests.  "DV" is the radio's
-# spelling for digital voice, which on these repeaters means DMR.
+# ANL/DMR so they remain stable for grouping and tests.
 MODE_LABELS: dict[str, str] = {"ANL": "FM", "DMR": "DV"}
 
 # Gateway repeaters are grouped separately and labelled by their gateway type.
